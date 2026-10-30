@@ -1,0 +1,1576 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TrakVBT</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TrakVBT">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#151C26">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Exo+2:ital,wght@1,900&display=swap">
+<link rel="manifest" href="manifest.webmanifest">
+<script>if ("serviceWorker" in navigator && location.protocol === "https:") addEventListener("load", () => navigator.serviceWorker.register("sw.js"));</script>
+<style>
+/* TrakVBT · app del sensor. Pestañas abajo (como TrakMov): Serie en vivo, Atletas, Progreso, Sensor.
+   En iPad la pestaña Serie usa dos columnas. El informe es una capa aparte pensada para imprimir/PDF. */
+:root{
+  --bg:#E9EDF2; --surface:#FFFFFF; --sunk:#F3F5F8; --ink:#111823; --muted:#5A6576; --line:#D3DAE3;
+  --accent:#2350E6; --accent-ink:#FFFFFF; --accent-soft:#E3E9FD;
+  --ok:#14885B; --ok-soft:#DDF3EA; --warn:#B86E00; --warn-soft:#FBEEDB; --bad:#C7362E; --bad-soft:#FBE4E2;
+  --z1:#4B3FB5; --z2:#2F6FD8; --z3:#13917F; --z4:#D18A0C; --z5:#D2492A;
+  --s1:#2350E6; --s2:#D2492A; --s3:#13917F; --s4:#B86E00;
+  --f-num:"Barlow Condensed","Arial Narrow","Roboto Condensed","Avenir Next Condensed",-apple-system,system-ui,sans-serif;
+  --f-body:"Barlow",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1118; --surface:#151C26; --sunk:#10161E; --ink:#E7ECF2; --muted:#8B97A8; --line:#253041;
+  --accent:#6E93FF; --accent-ink:#0C1118; --accent-soft:#1C2A4D;
+  --ok:#3CC48C; --ok-soft:#12302A; --warn:#F0A93A; --warn-soft:#352812; --bad:#FF6B5E; --bad-soft:#3A1A1A;
+  --z1:#8F84F2; --z2:#5E9BFF; --z3:#33C2AC; --z4:#F0B13D; --z5:#FF7A57;
+  --s1:#6E93FF; --s2:#FF7A57; --s3:#33C2AC; --s4:#F0B13D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1118; --surface:#151C26; --sunk:#10161E; --ink:#E7ECF2; --muted:#8B97A8; --line:#253041;
+  --accent:#6E93FF; --accent-ink:#0C1118; --accent-soft:#1C2A4D;
+  --ok:#3CC48C; --ok-soft:#12302A; --warn:#F0A93A; --warn-soft:#352812; --bad:#FF6B5E; --bad-soft:#3A1A1A;
+  --z1:#8F84F2; --z2:#5E9BFF; --z3:#33C2AC; --z4:#F0B13D; --z5:#FF7A57;
+  --s1:#6E93FF; --s2:#FF7A57; --s3:#33C2AC; --s4:#F0B13D; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg);margin:0}
+body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1.vt{font-family:var(--f-num);font-size:30px;font-weight:700;margin:2px 0 0;letter-spacing:.01em}
+
+/* Header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.hwrap{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font-family:"Exo 2","Arial Black",var(--f-num);font-style:italic;font-size:23px;font-weight:900;letter-spacing:-.01em;line-height:1;display:flex;align-items:center;gap:9px}
+.brand b{color:var(--accent);font-weight:900}
+.brand svg{width:32px;height:32px;flex:none}
+.mark-bg{fill:#0E1A33}
+.hright{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.demo{background:var(--warn-soft);color:var(--warn)}
+.pill.live{background:var(--ok-soft);color:var(--ok)}
+.pill.off{background:var(--bad-soft);color:var(--bad)}
+.pill.neutral{background:var(--sunk);color:var(--muted)}
+.iconbtn{border:1px solid var(--line);background:var(--sunk);border-radius:10px;width:36px;height:36px;display:grid;place-items:center}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn[aria-pressed="false"]{opacity:.55}
+
+/* Vistas */
+main{max-width:1180px;margin:0 auto;padding-block:14px 170px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.view{display:grid;gap:14px;align-content:start}
+.grid2{display:grid;gap:14px}
+@media (min-width:900px){.grid2{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}}
+.col{display:grid;gap:14px;align-content:start;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.phead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.phead h2{font-family:var(--f-num);font-size:20px;font-weight:600;margin:0;letter-spacing:.01em}
+.phead .sub{font-size:13px;color:var(--muted);text-align:right}
+
+/* Formularios */
+.setup{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:grid;gap:5px;min-width:0}
+.sel,.txt{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--sunk);font-size:16px}
+.sel{appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+.stepper{display:flex;border:1px solid var(--line);border-radius:10px;background:var(--sunk);overflow:hidden}
+.stepper button{border:0;background:transparent;width:44px;font-size:20px;font-weight:600;color:var(--accent)}
+.stepper input{flex:1;min-width:0;border:0;background:transparent;text-align:center;font-family:var(--f-num);font-size:22px;font-weight:600;padding:6px 0}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;background:var(--sunk);padding:3px;gap:3px}
+.seg button{flex:1;border:0;border-radius:7px;background:transparent;padding:7px 0;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* En vivo */
+.live-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.who{font-weight:600}
+.who span{color:var(--muted);font-weight:500}
+.big{display:grid;justify-items:center;padding:6px 0 14px}
+.repno{font-family:var(--f-num);font-size:17px;font-weight:600;color:var(--muted);letter-spacing:.06em}
+.vel{font-family:var(--f-num);font-weight:700;font-size:clamp(84px,24vw,128px);line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.vel small{font-size:.26em;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:0}
+.zone{margin-top:8px;display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-weight:600;font-size:13.5px;
+  color:var(--zc);background:color-mix(in srgb,var(--zc) 14%,transparent)}
+.zone i{width:8px;height:8px;border-radius:2px;background:var(--zc)}
+.zbar{display:flex;gap:3px;margin-top:10px;width:min(320px,100%)}
+.zbar span{flex:1;height:5px;border-radius:2px;background:var(--line)}
+.zbar span.on{background:var(--zc)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tiles + .tiles{margin-top:8px}
+.tile{background:var(--sunk);border-radius:12px;padding:10px 12px;min-width:0}
+.tile .v{font-family:var(--f-num);font-size:26px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .v small{font-size:14px;color:var(--muted);font-weight:500;margin-left:3px}
+.tile .d{font-size:12.5px;color:var(--muted)}
+.tile .d.up{color:var(--ok)} .tile .d.down{color:var(--bad)}
+.tile.bad .v{color:var(--bad)} .tile.warnv .v{color:var(--warn)}
+.tile.sm .v{font-size:22px}
+.alert{display:flex;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;font-weight:600;margin-top:12px}
+.alert svg{width:20px;height:20px;flex:none}
+.alert.bad{background:var(--bad-soft);color:var(--bad)}
+.alert.ok{background:var(--ok-soft);color:var(--ok)}
+.alert.info{background:var(--accent-soft);color:var(--accent)}
+.alert.warn{background:var(--warn-soft);color:var(--warn)}
+.calbar{height:4px;border-radius:2px;background:color-mix(in srgb,var(--warn) 25%,transparent);margin-top:8px;overflow:hidden}
+.calbar i{display:block;height:100%;background:var(--warn);width:0;transition:width .15s}
+
+/* Tarjeta de calibración */
+.calcard{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;border-width:2px}
+.calcard .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.calcard .ic svg{width:22px;height:22px}
+.calcard b{display:block;font-size:16px}
+.calcard span{font-size:13.5px;color:var(--muted)}
+.calcard.need{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 6%,var(--surface))}
+.calcard.need .ic{background:var(--warn-soft);color:var(--warn)}
+.calcard.busy{border-color:var(--warn)}
+.calcard.busy .ic{background:var(--warn-soft);color:var(--warn)}
+.calcard.ok{border-color:var(--line)}
+.calcard.ok .ic{background:var(--ok-soft);color:var(--ok)}
+.calcard .btnCal{border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:16px;background:var(--warn);color:#fff}
+.calcard.ok .btnCal{background:var(--sunk);color:var(--ink);border:1px solid var(--line);padding:9px 14px;font-size:14px}
+.calcard .calbar{grid-column:1/-1;margin-top:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.calcard.busy .ic svg{animation:spin 1.2s linear infinite}
+
+/* Gráficos */
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-num);fill:var(--muted);font-size:11px}
+.chart .vlab{fill:var(--ink);font-size:12px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.legend i.ln{height:3px;width:14px;border-radius:2px}
+.curvewrap{margin-top:12px}
+.curvewrap .label{display:block;margin-bottom:4px}
+.orm{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.orm .v{font-family:var(--f-num);font-size:40px;font-weight:700;line-height:1}
+.orm .v small{font-size:16px;color:var(--muted);font-weight:500}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+
+/* Listas */
+.list{display:grid;gap:0}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:2px}
+.item.tap{cursor:pointer}
+.item .load{font-family:var(--f-num);font-size:22px;font-weight:600;min-width:62px}
+.item .load small{font-size:13px;color:var(--muted)}
+.item .meta{font-size:13.5px;color:var(--muted);min-width:0}
+.item .meta b{color:var(--ink);font-weight:600}
+.vlp{font-family:var(--f-num);font-size:18px;font-weight:600;text-align:right}
+.vlp.bad{color:var(--bad)} .vlp.ok{color:var(--ok)}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--muted);margin-left:6px;letter-spacing:.03em}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.avatar{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-num);font-weight:700;font-size:18px}
+.chev{color:var(--muted);font-size:22px;padding-right:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.btn1{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn2{border:1px solid var(--line);background:var(--sunk);border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px}
+.btn2.danger{color:var(--bad)}
+.toast{font-size:13px;color:var(--ok)}
+.back{border:0;background:none;color:var(--accent);font-weight:600;padding:0;margin-bottom:4px;font-size:15px}
+.sess{border-top:1px solid var(--line);padding:10px 0}
+.sess:first-child{border-top:0}
+.sess summary{list-style:none;display:flex;justify-content:space-between;gap:10px;cursor:pointer}
+.sess summary::-webkit-details-marker{display:none}
+.sess summary b{font-weight:600}
+.sess summary span{color:var(--muted);font-size:13.5px}
+.mini{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+.mini th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right;padding:4px 6px;border-bottom:1px solid var(--line)}
+.mini th:first-child,.mini td:first-child{text-align:left}
+.mini td{padding:6px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+.mini tr:last-child td{border-bottom:0}
+.mini td.bad{color:var(--bad);font-weight:600}
+
+/* WiFi */
+.netnow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.netnow b{font-size:16px}
+.netnow .addr{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--muted)}
+.netrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.netrow:first-child{border-top:0}
+.netrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.netrow small{color:var(--muted);font-size:12px}
+.netrow button{border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:6px 10px;font-weight:600;font-size:13px}
+.pwbox{display:grid;gap:8px;margin-top:10px;padding:12px;border-radius:12px;background:var(--sunk)}
+.pwbox input{background:var(--surface)}
+.kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:460px){.kv{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Hoja (modal) */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(5,10,18,.55);display:grid;align-items:end;justify-items:center}
+.sheet .card{width:min(560px,100%);background:var(--surface);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;max-height:90vh;overflow:auto}
+@media (min-width:700px){.sheet{align-items:center}.sheet .card{border-radius:18px}}
+.sheet h3{font-family:var(--f-num);font-size:22px;margin:0}
+
+/* Barra de acción y navegación */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));pointer-events:none}
+.dock > *{pointer-events:auto}
+.bar{max-width:760px;margin:0 auto 8px;display:flex;gap:10px;align-items:center;background:color-mix(in srgb,var(--surface) 94%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:18px;padding:8px}
+.go{flex:1;border:0;border-radius:12px;padding:13px 18px;font-family:var(--f-num);font-size:21px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;gap:10px}
+.go.stop{background:var(--bad);color:#fff}
+.go .dot{width:10px;height:10px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite}
+.timer{font-family:var(--f-num);font-size:22px;font-weight:600;min-width:58px;text-align:center;color:var(--muted)}
+nav.tabs{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:color-mix(in srgb,var(--surface) 94%,transparent);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.12)}
+nav.tabs button{border:0;background:transparent;border-radius:999px;padding:7px 4px;display:grid;justify-items:center;gap:2px;font-size:12.5px;font-weight:600;color:var(--muted)}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+@keyframes pulse{50%{opacity:.25}}
+@keyframes pop{from{transform:scale(.94);opacity:.4}to{transform:none;opacity:1}}
+.pop{animation:pop .28s ease-out}
+@media (prefers-reduced-motion:reduce){.go .dot,.pop{animation:none}}
+
+/* Informe (pantalla y PDF) */
+#report{position:fixed;inset:0;z-index:30;background:#E9EDF2;overflow:auto;-webkit-overflow-scrolling:touch}
+.rbar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:#fff;border-bottom:1px solid #D3DAE3;color:#111823}
+.rbar .sel{max-width:200px;background:#F3F5F8;border-color:#D3DAE3;color:#111823}
+.rbar .btn2{background:#F3F5F8;border-color:#D3DAE3;color:#111823}
+.rbar .btn1{background:#2350E6;color:#fff}
+.page{max-width:820px;margin:16px auto 40px;background:#fff;color:#111823;padding:32px 34px;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.08);
+  --ink:#111823;--muted:#5A6576;--line:#D3DAE3;--sunk:#F3F5F8;--surface:#fff;--accent:#2350E6;--ok:#14885B;--bad:#C7362E;--warn:#B86E00;
+  --s1:#2350E6;--s2:#D2492A;--s3:#13917F;--s4:#B86E00}
+.page .rh{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #111823;padding-bottom:12px;margin-bottom:18px}
+.page .rh .brand{font-size:20px;color:#111823}
+.page .rh .brand b{color:#2350E6}
+.page h1{font-family:var(--f-num);font-size:30px;margin:6px 0 0;line-height:1.05}
+.page .rmeta{font-size:13px;color:#5A6576;text-align:right}
+.page h2{font-family:var(--f-num);font-size:21px;margin:22px 0 8px;padding-bottom:4px;border-bottom:1px solid #D3DAE3}
+.page h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#5A6576;margin:14px 0 6px}
+.page .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.page .kpi{background:#F3F5F8;border-radius:10px;padding:8px 10px}
+.page .kpi .v{font-family:var(--f-num);font-size:24px;font-weight:600}
+.page .kpi .v small{font-size:13px;color:#5A6576}
+.page .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.page .chart text{fill:#5A6576}
+.page .chart .vlab{fill:#111823}
+.page .foot{margin-top:24px;font-size:11.5px;color:#5A6576;border-top:1px solid #D3DAE3;padding-top:8px}
+.page .two > div,.page table.mini,.page .kpis{break-inside:avoid}
+.page h2,.page h3{break-after:avoid}
+@media (max-width:600px){.page{padding:20px 16px;margin:0}.page .kpis{grid-template-columns:repeat(2,1fr)}.page .two{grid-template-columns:1fr}}
+@media print{
+  @page{size:A4;margin:12mm}
+  html,body{background:#fff!important}
+  body > :not(#report){display:none!important}
+  body::before{display:none}
+  #report{position:static;background:#fff;overflow:visible}
+  .rbar{display:none!important}
+  .page{box-shadow:none;margin:0;max-width:none;padding:0;border-radius:0}
+  .page .kpis{grid-template-columns:repeat(4,1fr)}
+  .page .two{grid-template-columns:1fr 1fr}
+  .exblock + .exblock{break-before:page}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand" aria-label="TrakVBT">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect class="mark-bg" width="64" height="64" rx="15"/><path d="M27 20A7 7 0 0 1 37 20M23.5 15.5A12 12 0 0 1 40.5 15.5" fill="none" stroke="#5C8BFF" stroke-width="3" stroke-linecap="round"/><rect x="6" y="29" width="52" height="5" rx="2.5" fill="#E7ECF2"/><rect x="24" y="24" width="16" height="15" rx="4" fill="#E7ECF2"/><rect x="30.5" y="27.5" width="3" height="8" rx="1.5" fill="#1F5FE0"/><path d="M8 52C20 52 25 43 32 43C39 43 44 52 56 52" fill="none" stroke="#5C8BFF" stroke-width="3" stroke-linecap="round"/></svg>
+      <span>TRAK<b>VBT</b></span>
+    </div>
+    <div class="hright">
+      <span id="bat" class="pill neutral" hidden></span>
+      <span id="conn" class="pill demo"><i></i>Demo</span>
+      <button id="snd" class="iconbtn" aria-pressed="true" aria-label="Sonido de alerta" title="Sonido de alerta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ SERIE ============ -->
+  <section class="view" id="vSerie">
+    <section class="panel" id="onlineMeasure" hidden>
+      <div class="phead"><h2>Para medir, abrí la app del sensor</h2></div>
+      <p class="note" style="margin-top:0">Esta es TrakVBT online: sirve para ver atletas, progreso e informes en cualquier lugar. Las series se miden desde la app que vive en la placa.</p>
+      <ol class="note" style="padding-left:18px;margin:8px 0 0">
+        <li>Prendé la placa y conectá el iPhone a la misma red (o a la red TrakVBT-XXXX).</li>
+        <li>Abrí la app del sensor y entrená normalmente.</li>
+        <li>Al terminar, en la app del sensor: Sensor › Datos › <b>Enviar a TrakVBT online</b>.</li>
+      </ol>
+      <div class="row">
+        <a class="btn1" id="openSensor" href="http://trakvbt.local" style="text-decoration:none">Abrir app del sensor</a>
+        <button class="btn2" id="tryDemo">Probar con datos de ejemplo</button>
+      </div>
+    </section>
+    <section class="panel calcard need" id="calCard" aria-live="polite">
+      <div class="ic" id="calIc"></div>
+      <div><b id="calTitle">Calibrá antes de empezar</b><span id="calText">Dejá el sensor quieto en la barra y tocá Calibrar.</span></div>
+      <button class="btnCal" id="calBtn">Calibrar</button>
+      <div class="calbar" id="calBar" hidden><i id="calFill"></i></div>
+    </section>
+    <div class="grid2">
+      <div class="col">
+        <section class="panel" aria-label="Configuración de la serie">
+          <div class="setup">
+            <label class="field"><span class="label">Atleta</span><select class="sel" id="athlete"></select></label>
+            <label class="field"><span class="label">Ejercicio</span><select class="sel" id="exercise"></select></label>
+            <div class="field"><span class="label" id="loadLbl">Carga (kg)</span>
+              <div class="stepper" role="group" aria-labelledby="loadLbl">
+                <button id="loadDn" aria-label="Bajar 2,5 kg">−</button>
+                <input id="load" inputmode="decimal" aria-label="Carga en kg">
+                <button id="loadUp" aria-label="Subir 2,5 kg">+</button>
+              </div></div>
+            <div class="field"><span class="label" id="cutLbl">Corte de pérdida</span>
+              <div class="seg" id="cut" role="group" aria-labelledby="cutLbl">
+                <button data-v="10">10%</button><button data-v="20">20%</button><button data-v="30">30%</button>
+              </div></div>
+            <div class="field" style="grid-column:1/-1"><span class="label" id="gapLbl">Fin automático de la serie (sin reps durante…)</span>
+              <div class="seg" id="gap" role="group" aria-labelledby="gapLbl">
+                <button data-v="20">20 s</button><button data-v="30">30 s</button><button data-v="60">60 s</button><button data-v="0">Manual</button>
+              </div></div>
+          </div>
+        </section>
+
+        <section class="panel" aria-live="polite">
+          <div class="live-top">
+            <div class="who" id="who"></div>
+            <span class="label" id="setState"></span>
+          </div>
+          <div class="big">
+            <div class="repno" id="repno">REP —</div>
+            <div class="vel" id="vel">—<small>m/s</small></div>
+            <div class="zone" id="zone"><i></i><span>Velocidad media propulsiva</span></div>
+            <div class="zbar" id="zbar"><span></span><span></span><span></span><span></span><span></span></div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><div class="label">Pico</div><div class="v" id="tPeak">—</div></div>
+            <div class="tile"><div class="label">Potencia</div><div class="v" id="tPow">—</div></div>
+            <div class="tile"><div class="label">Recorrido</div><div class="v" id="tRom">—</div></div>
+            <div class="tile" id="tVLbox"><div class="label">Pérdida</div><div class="v" id="tVL">—</div></div>
+          </div>
+          <div class="tiles">
+            <div class="tile sm"><div class="label">Fuerza media</div><div class="v" id="tF">—</div></div>
+            <div class="tile sm"><div class="label">Pot. pico</div><div class="v" id="tPP">—</div></div>
+            <div class="tile sm"><div class="label">T. bajo tensión</div><div class="v" id="tTut">—</div></div>
+            <div class="tile sm"><div class="label">Excéntrica</div><div class="v" id="tEcc">—</div></div>
+          </div>
+          <div class="curvewrap" id="curveWrap" hidden>
+            <span class="label">Curva de velocidad · última rep</span>
+            <svg id="curve" class="chart" viewBox="0 0 340 90" role="img" aria-label="Velocidad durante la última repetición"></svg>
+          </div>
+          <div id="alert" class="alert info" hidden></div>
+        </section>
+
+        <section class="panel">
+          <div class="phead"><h2>Velocidad por repetición</h2><span class="sub" id="chartSub"></span></div>
+          <svg id="repChart" class="chart" viewBox="0 0 340 170" role="img" aria-label="Velocidad media de cada repetición"></svg>
+          <div class="legend">
+            <span><i style="background:var(--ok)"></i>Dentro del corte</span>
+            <span><i style="background:var(--warn)"></i>Cerca del corte</span>
+            <span><i style="background:var(--bad)"></i>Pasó el corte</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="panel">
+          <div class="phead"><h2>Perfil carga-velocidad</h2><span class="sub" id="profSub"></span></div>
+          <div class="orm"><span class="label">1RM estimado</span><span class="v" id="orm">—</span></div>
+          <svg id="profChart" class="chart" viewBox="0 0 340 190" role="img" aria-label="Mejor velocidad de cada serie según la carga"></svg>
+          <p class="note" id="profNote"></p>
+        </section>
+        <section class="panel">
+          <div class="phead"><h2>Series de hoy</h2><span class="sub" id="todaySub"></span></div>
+          <div class="list" id="todaySets"></div>
+          <p class="note">Tocá una serie para cambiarle el atleta o la carga, o borrarla.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ATLETAS ============ -->
+  <section class="view" id="vAtletas" hidden>
+    <div id="athList">
+      <div class="phead" style="margin:0 2px 12px"><h1 class="vt">Atletas</h1><button class="btn1" id="athNew">＋ Nuevo atleta</button></div>
+      <section class="panel" id="onlineWelcome" hidden>
+        <div class="phead"><h2>Traé tus datos del sensor</h2></div>
+        <p class="note" style="margin-top:0">En la app de la placa, andá a Sensor › Datos y tocá <b>Copiar datos</b>; después volvé acá y tocá <b>Pegar datos de la placa</b>. También podés importar un archivo de respaldo.</p>
+        <div class="row"><button class="btn1" id="wPaste">Pegar datos de la placa</button><button class="btn2" id="wImport">Importar respaldo</button><button class="btn2" id="wDemo">Ver ejemplo</button></div>
+      </section>
+      <section class="panel"><div class="list" id="athItems"></div></section>
+    </div>
+    <div id="athDetail" hidden>
+      <button class="back" id="athBack">‹ Atletas</button>
+      <div class="phead" style="margin:0 2px 12px;align-items:center">
+        <div><h1 class="vt" id="adName"></h1><div class="note" id="adMeta" style="margin:0"></div></div>
+        <button class="btn2" id="adEdit">Editar</button>
+      </div>
+      <div class="row" style="margin:0 0 14px">
+        <button class="btn1" id="adReport">Informe PDF</button>
+        <button class="btn2" id="adProgress">Ver progreso</button>
+        <button class="btn2" id="adTrain">Entrenar ahora</button>
+      </div>
+      <section class="panel">
+        <div class="phead"><h2>Resumen por ejercicio</h2></div>
+        <div id="adSummary"></div>
+      </section>
+      <section class="panel" style="margin-top:14px">
+        <div class="phead"><h2>Sesiones</h2><span class="sub" id="adSessCount"></span></div>
+        <div id="adSessions"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ============ PROGRESO ============ -->
+  <section class="view" id="vProgreso" hidden>
+    <h1 class="vt" style="margin:0 2px">Progreso</h1>
+    <section class="panel">
+      <div class="setup">
+        <label class="field"><span class="label">Atleta</span><select class="sel" id="pgAth"></select></label>
+        <label class="field"><span class="label">Ejercicio</span><select class="sel" id="pgEx"></select></label>
+      </div>
+    </section>
+    <div id="pgBody"></div>
+  </section>
+
+  <!-- ============ SENSOR ============ -->
+  <section class="view" id="vSensor" hidden>
+    <h1 class="vt" style="margin:0 2px" id="snH1">Sensor</h1>
+    <section class="panel" id="snPanel">
+      <div class="phead"><h2>Estado</h2><span class="sub" id="snSub"></span></div>
+      <div class="kv" id="snKv"></div>
+      <div class="row">
+        <button class="btn2" id="snCal">Recalibrar</button>
+        <button class="btn2" id="snRestart">Reiniciar sensor</button>
+        <span class="toast" id="snToast" role="status"></span>
+      </div>
+      <p class="note">Recalibrar: dejá la barra quieta 1 segundo. Reiniciar: equivale a tocar RST en la placa.</p>
+    </section>
+
+    <section class="panel" id="wifiPanel" hidden>
+      <div class="phead"><h2>Red WiFi del sensor</h2><span class="sub" id="wifiSub"></span></div>
+      <div class="netnow" id="netNow"></div>
+      <p class="note" id="netHelp"></p>
+      <div class="label" style="margin-top:14px">Redes guardadas</div>
+      <div class="list" id="netSaved"></div>
+      <div class="row"><button class="btn2" id="netScan">Buscar redes</button><button class="btn2" id="netManual">Escribir otra red</button><span class="toast" id="netToast" role="status"></span></div>
+      <div class="list" id="netFound"></div>
+      <div class="pwbox" id="pwBox" hidden>
+        <div id="pwTitle"><span class="label">Clave de</span> <b id="pwSsid"></b></div>
+        <input class="txt" id="ssidIn" hidden autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Nombre exacto de la red (respeta mayúsculas)">
+        <input class="txt" id="pwIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Clave de la red (vacía si es abierta)">
+        <div class="row" style="margin-top:0"><button class="btn1" id="pwSave">Guardar y conectar</button><button class="btn2" id="pwCancel">Cancelar</button></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="phead"><h2>Datos</h2><span class="sub" id="dataSub"></span></div>
+      <p class="note" style="margin-top:0" id="dataNote">Los atletas y las series se guardan en este teléfono. Exportá un respaldo de vez en cuando o para pasar los datos a TrakMov u otro dispositivo.</p>
+      <div id="sendOnline" hidden>
+        <label class="field"><span class="label">Dirección de TrakVBT online</span>
+          <input class="txt" id="onlineUrl" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="https://tu-usuario.github.io/trakvbt/"></label>
+        <div class="row"><button class="btn1" id="dSend">Enviar a TrakVBT online</button><button class="btn2" id="dCopy">Copiar datos</button></div>
+        <p class="note"><b>Enviar</b> abre TrakVBT online en Safari con tus datos. Si usás TrakVBT online desde su ícono en la pantalla de inicio, tocá <b>Copiar datos</b> acá y después <b>Pegar datos de la placa</b> allá.</p>
+      </div>
+      <div class="row" id="pasteRow" hidden><button class="btn1" id="dPaste">Pegar datos de la placa</button></div>
+      <textarea id="pasteBox" class="txt" hidden placeholder="Mantené apretado acá y elegí Pegar" style="height:90px;margin-top:10px;font:12px ui-monospace,Menlo,monospace"></textarea>
+      <div class="row">
+        <button class="btn1" id="dExport">Exportar respaldo</button>
+        <button class="btn2" id="dImport">Importar</button>
+        <button class="btn2" id="dCsv">Copiar CSV</button>
+        <button class="btn2" id="clearEx">Quitar ejemplos</button>
+        <button class="btn2 danger" id="dWipe">Borrar todo</button>
+        <span class="toast" id="dToast" role="status"></span>
+      </div>
+      <input type="file" id="dFile" accept=".json,application/json,text/plain" hidden>
+      <textarea id="csvFallback" class="txt" aria-label="Datos" hidden style="height:120px;margin-top:10px;font:12px ui-monospace,Menlo,monospace"></textarea>
+    </section>
+  </section>
+</main>
+
+<div class="dock">
+  <div class="bar" id="actionBar">
+    <div class="timer" id="timer">0:00</div>
+    <button class="go" id="go"><span id="goTxt">Iniciar serie</span></button>
+  </div>
+  <nav class="tabs" aria-label="Secciones">
+    <button data-tab="Serie" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l3-8 4 16 3-8h5"/></svg>Serie</button>
+    <button data-tab="Atletas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c2.3 0 4 1.4 4.6 4"/></svg>Atletas</button>
+    <button data-tab="Progreso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/></svg>Progreso</button>
+    <button data-tab="Sensor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2.5"/><path d="M2 12h5M17 12h5M9.5 4a4 4 0 0 1 5 0"/></svg>Sensor</button>
+  </nav>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="card" id="sheetCard"></div></div>
+
+<div id="report" hidden>
+  <div class="rbar">
+    <button class="btn2" id="rClose">Cerrar</button>
+    <select class="sel" id="rRange">
+      <option value="4">Últimas 4 semanas</option>
+      <option value="8">Últimas 8 semanas</option>
+      <option value="12">Últimas 12 semanas</option>
+      <option value="0" selected>Todo</option>
+    </select>
+    <button class="btn1" id="rPrint" style="margin-left:auto">Guardar PDF</button>
+  </div>
+  <div class="page" id="rPage"></div>
+</div>
+
+<script>
+(() => {
+// =====================================================================
+// Datos base
+// =====================================================================
+const EXERCISES = [ // MVT = velocidad mínima al 1RM (m/s), referencias habituales de VBT
+  {id:'sq', name:'Sentadilla', mvt:0.30},
+  {id:'bp', name:'Press de banca', mvt:0.17},
+  {id:'dl', name:'Peso muerto', mvt:0.15},
+  {id:'ht', name:'Hip thrust', mvt:0.25},
+  {id:'mp', name:'Press militar', mvt:0.20},
+  {id:'pc', name:'Cargada de potencia', mvt:0.80},
+];
+const ZONES = [ // zonas de entrenamiento por velocidad media
+  {max:0.50, name:'Fuerza máxima', c:'--z1'},
+  {max:0.75, name:'Fuerza acelerativa', c:'--z2'},
+  {max:1.00, name:'Fuerza-velocidad', c:'--z3'},
+  {max:1.30, name:'Velocidad-fuerza', c:'--z4'},
+  {max:99,   name:'Velocidad', c:'--z5'},
+];
+const G = 9.81, DAY = 86400000;
+const $ = id => document.getElementById(id);
+const fmt = (n, d=2) => (n==null||!isFinite(n)) ? '—' : n.toFixed(d).replace('.', ',');
+const has = x => typeof x === 'number' && isFinite(x);
+const esc = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kg = v => String(v).replace('.', ',');
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const dayKey = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const dShort = t => new Date(t).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+const dLong = t => new Date(t).toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } },
+};
+const exo = id => EXERCISES.find(e=>e.id===id) || EXERCISES[0];
+
+// =====================================================================
+// Estado
+// =====================================================================
+const S = {
+  athlete:'', exercise:'sq', load:100, cut:20, autoGap:30,
+  recording:false, reps:[], t0:0, liveSet:null,
+  athletes:[], sets:[], demo:false,
+  calSec:null, calLocal:0, onlineUrl:'', online:false,
+  source:'demo', sound:true, battery:null, sensorState:null, cal:0, hz:null, fw:null, volt:null, connected:false,
+  tab:'Serie', detail:null, pgAth:'', pgEx:'sq',
+};
+Object.assign(S, store.get('trakvbt.prefs', {}));
+const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl});
+const saveAll = () => {
+  const ok = store.set('trakvbt.athletes', S.athletes.filter(a=>!a.example)) && store.set('trakvbt.sets', S.sets.filter(s=>!s.example));
+  if (!ok) toastIn('dToast','No hay espacio para guardar: exportá un respaldo');
+};
+const athName = id => (S.athletes.find(a=>a.id===id)||{}).name || 'Sin atleta';
+const athOf = id => S.athletes.find(a=>a.id===id);
+
+// =====================================================================
+// Cálculos
+// =====================================================================
+function finishSet(s){
+  const vs = s.reps.map(r=>r.v);
+  s.best = Math.max(...vs);
+  s.mean = vs.reduce((a,b)=>a+b,0)/vs.length;
+  s.vl = (1 - vs[vs.length-1]/s.best)*100;
+  return s;
+}
+// potencia media propulsiva (W): con datos del sensor usa F·v medida; si no, carga·g·v
+const power = (load, r) => has(r.pk) ? load*r.pk : load*G*r.v;
+const force = (load, r) => has(r.fk) ? load*r.fk : null;
+const peakPower = (load, r) => has(r.ppk) ? load*r.ppk : null;
+const zoneOf = v => ZONES.findIndex(z => v < z.max);
+
+// Recta carga-velocidad con puntos {x:carga, y:mejor VMP}
+function fitLV(pts, mvt){
+  const xs = [...new Set(pts.map(p=>p.x))];
+  if (xs.length < 2) return {ok:false, pts, mvt};
+  const n=pts.length, mx=pts.reduce((a,p)=>a+p.x,0)/n, my=pts.reduce((a,p)=>a+p.y,0)/n;
+  let sxy=0,sxx=0; pts.forEach(p=>{sxy+=(p.x-mx)*(p.y-my); sxx+=(p.x-mx)**2});
+  const m = sxy/sxx, b = my - m*mx;
+  if (!(m < 0)) return {ok:false, pts, mvt};
+  const rm = (mvt - b)/m;
+  const ss = pts.reduce((a,p)=>a+(p.y-(m*p.x+b))**2,0), st = pts.reduce((a,p)=>a+(p.y-my)**2,0);
+  return {ok: rm > 0 && rm < 1000, pts, m, b, rm, r2: st ? 1-ss/st : 1, mvt, v0:b};
+}
+// Sesiones: series agrupadas por atleta + ejercicio + día
+function sessionsOf(ath, ex, sinceMs=0){
+  const map = new Map();
+  S.sets.filter(s=>s.athlete===ath && (!ex || s.exercise===ex) && s.time>=sinceMs).forEach(s=>{
+    const k = s.exercise + '|' + dayKey(s.time);
+    if (!map.has(k)) map.set(k, {ex:s.exercise, day:dayKey(s.time), time:s.time, sets:[]});
+    const o = map.get(k); o.sets.push(s); o.time = Math.min(o.time, s.time);
+  });
+  return [...map.values()].sort((a,b)=>a.time-b.time).map(o=>{
+    const e = exo(o.ex);
+    o.sets.sort((a,b)=>a.time-b.time);
+    o.fit = fitLV(o.sets.map(s=>({x:s.load, y:s.best})), e.mvt);
+    o.best = Math.max(...o.sets.map(s=>s.best));
+    o.maxLoad = Math.max(...o.sets.map(s=>s.load));
+    o.pmax = Math.max(...o.sets.flatMap(s=>s.reps.map(r=>power(s.load,r))));
+    o.reps = o.sets.reduce((a,s)=>a+s.reps.length,0);
+    o.bestAt = load => { const v = o.sets.filter(s=>s.load===load).map(s=>s.best); return v.length ? Math.max(...v) : null; };
+    return o;
+  });
+}
+// Perfil global reciente (últimas 6 semanas) de atleta+ejercicio
+function currentRM(ath, ex){
+  const ses = sessionsOf(ath, ex, Date.now() - 42*DAY).filter(o=>o.fit.ok);
+  if (ses.length) return ses[ses.length-1].fit.rm;
+  const P = profileOf(ath, ex); return P.ok ? P.rm : null;
+}
+function profileOf(ath, ex, extra=[]){
+  const since = Date.now() - 21*DAY;
+  const pts = S.sets.filter(s=>s.athlete===ath && s.exercise===ex && s.time>=since).map(s=>({x:s.load, y:s.best, t:s.time}));
+  return fitLV(pts.concat(extra), exo(ex).mvt);
+}
+
+// =====================================================================
+// Demo
+// =====================================================================
+const DEMO = [
+  {id:'d1', name:'Tomás R.', pos:'Pilar', bw:112, v0:{sq:1.75,bp:1.55,dl:1.45,ht:1.6,mp:1.6,pc:2.2}, rm:{sq:180,bp:135,dl:210,ht:230,mp:85,pc:110}},
+  {id:'d2', name:'Juan M.', pos:'Apertura', bw:84, v0:{sq:1.95,bp:1.7,dl:1.6,ht:1.8,mp:1.75,pc:2.4}, rm:{sq:140,bp:100,dl:170,ht:190,mp:65,pc:90}},
+];
+function demoVel(a, exId, load, rmFactor=1){
+  const e = exo(exId), v0 = a.v0[exId], rm = a.rm[exId]*rmFactor;
+  return Math.max(e.mvt + 0.02, v0 - (v0 - e.mvt)/rm*load);
+}
+function makeRep(n, base){
+  const fatigue = n===1 ? 0.97 : n===2 ? 1.0 : 1 - 0.045*(n-2) - 0.006*(n-2)**2;
+  const v = Math.max(0.12, base*fatigue*(1 + (Math.random()-0.5)*0.03));
+  const rom = 0.55 + (Math.random()-0.5)*0.03 - (n>4 ? 0.004*(n-4) : 0);
+  const dur = rom / (v*0.92), ed = 1.1 + Math.random()*0.4;
+  const fk = G + v*3.2, pk = fk*v;
+  const c = Array.from({length:32}, (_,i)=>{ const u=i/31; return Math.max(0, v*1.62*Math.sin(Math.PI*Math.pow(u,0.8))); });
+  return { v, vm:v*0.95, vp: v*(1.62 + Math.random()*0.12), rom, dur, fk, pk, ppk: pk*2.1, ev: rom/ed, ed, tut: ed + dur, c };
+}
+function seedDemo(){
+  S.demo = true;
+  DEMO.forEach(a => { if (!S.athletes.some(x=>x.id===a.id)) S.athletes.push({...a, example:true}); });
+  const now = Date.now();
+  DEMO.forEach((a, ai) => ['sq','bp'].forEach(ex => {
+    for (let w = 7; w >= 1; w--){
+      const t0 = now - w*7*DAY - (ai*2+ (ex==='bp'?1:0))*DAY + 10*3600000;
+      const f = 1 - 0.018*w;                     // mejora ~2% por semana
+      const rm = a.rm[ex];
+      const loads = ex==='sq' ? [0.45,0.6,0.75] : [0.5,0.65,0.8];
+      loads.forEach((p, i) => {
+        const load = Math.round(rm*p/2.5)*2.5, base = demoVel(a, ex, load, f), reps = [];
+        const n = i===0 ? 5 : i===1 ? 4 : 3;
+        for (let k=1;k<=n;k++) reps.push(makeRep(k, base));
+        S.sets.push(finishSet({id:uid('s'), athlete:a.id, exercise:ex, load, cut:20, reps, time:t0 + i*7*60000, example:true}));
+      });
+    }
+  }));
+}
+
+// =====================================================================
+// Sonido
+// =====================================================================
+let actx = null;
+function beep(freq=880, ms=180, times=2){
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    for (let i=0;i<times;i++){
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i*(ms/1000+0.08);
+      o.frequency.value = freq; o.type='square'; g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t+ms/1000);
+    }
+  } catch(e){}
+  try { navigator.vibrate && navigator.vibrate([120,60,120]); } catch(e){}
+}
+// iOS solo habilita el audio después de un toque: se desbloquea con el primero, en cualquier parte
+function unlockAudio(){
+  try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume();
+    const b = actx.createBuffer(1, 1, 22050), src = actx.createBufferSource(); src.buffer = b; src.connect(actx.destination); src.start(0); } catch(e){}
+  document.removeEventListener('touchend', unlockAudio); document.removeEventListener('click', unlockAudio);
+}
+document.addEventListener('touchend', unlockAudio); document.addEventListener('click', unlockAudio);
+const cmd = (c, extra='') => S.source==='sensor' ? fetch(`/cmd?c=${c}${extra}`).catch(()=>{}) : Promise.resolve();
+
+// =====================================================================
+// Serie en vivo
+// =====================================================================
+let demoTimer = null, clock = null, wake = null;
+function startSet(fromSensor){
+  if (S.recording) return;
+  S.recording = true; S.reps = []; S.t0 = Date.now();
+  S.liveSet = {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut};
+  S.liveId = uid('s');
+  try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); } catch(e){}
+  try { navigator.wakeLock && navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{}); } catch(e){}
+  clock = setInterval(tickClock, 500);
+  if (S.source === 'demo') scheduleDemoRep(1800);
+  else if (!fromSensor) cmd('start', `&cut=${S.cut}&gap=${S.autoGap}`);
+  renderSerie();
+}
+function endSet(fromSensor){
+  if (!S.recording) return;
+  S.recording = false; clearTimeout(demoTimer); clearInterval(clock);
+  try { wake && wake.release(); } catch(e){} wake = null;
+  if (S.reps.length){ S.sets.push(finishSet({id:S.liveId || uid('s'), ...S.liveSet, reps:S.reps.slice(), time:S.t0})); saveAll(); }
+  try { localStorage.removeItem('trakvbt.live'); } catch(e){}
+  S.liveId = null;
+  if (!fromSensor) cmd('stop');
+  renderSerie();
+}
+function scheduleDemoRep(ms){
+  demoTimer = setTimeout(() => {
+    if (!S.recording) return;
+    const a = athOf(S.liveSet.athlete);
+    const ref = a && a.v0 ? a : DEMO[0];
+    const base = demoVel(ref, ref.v0[S.liveSet.exercise] ? S.liveSet.exercise : 'sq', S.liveSet.load);
+    addRep(makeRep(S.reps.length+1, base));
+    const best = Math.max(...S.reps.map(r=>r.v)), last = S.reps[S.reps.length-1].v;
+    if ((1-last/best)*100 <= S.liveSet.cut && S.reps.length < 12) scheduleDemoRep(2300 + Math.random()*700);
+  }, ms);
+}
+let lastRepAt = 0, autoNote = '';
+function addRep(rep){ // punto de entrada de datos reales: lo llama también el sensor
+  // si pasó la pausa de fin automático, la rep nueva empieza otra serie
+  if (S.recording && S.autoGap && S.reps.length && Date.now() - lastRepAt > S.autoGap*1000) endSet(true);
+  if (!S.recording) startSet(true);
+  lastRepAt = Date.now(); autoNote = '';
+  S.reps.push(rep);
+  store.set('trakvbt.live', {id:S.liveId, ...S.liveSet, reps:S.reps, time:S.t0});
+  const best = Math.max(...S.reps.map(r=>r.v));
+  const vl = (1 - rep.v/best)*100;
+  if (S.reps.length > 1 && vl > S.liveSet.cut) beep(520, 220, 3); else beep(1046, 70, 1);
+  if (S.tab === 'Serie') renderSerie(true);
+}
+window.trakvbtRep = addRep;
+setInterval(() => {
+  if (S.recording && S.autoGap && S.reps.length && Date.now() - lastRepAt > S.autoGap*1000){
+    const n = S.reps.length; endSet();
+    autoNote = `Serie guardada sola (${n} reps). La próxima rep arranca una serie nueva.`;
+    if (S.tab==='Serie') renderSerie();
+  }
+}, 1000);
+function tickClock(){
+  const s = Math.floor((Date.now()-S.t0)/1000);
+  $('timer').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function fillAthleteSelects(){
+  const opts = S.athletes.map(a=>`<option value="${a.id}">${esc(a.name)}${a.pos?' · '+esc(a.pos):''}</option>`).join('');
+  $('athlete').innerHTML = `<option value="">Sin atleta</option>${opts}<option value="__new">＋ Nuevo atleta…</option>`;
+  $('pgAth').innerHTML = S.athletes.length ? opts : '<option value="">— sin atletas —</option>';
+  if (S.athlete && !athOf(S.athlete)) S.athlete = '';
+  if (!athOf(S.pgAth)) S.pgAth = S.athletes[0] ? S.athletes[0].id : '';
+}
+
+function renderSerie(newRep){
+  const onl = S.online && S.source !== 'demo';
+  $('onlineMeasure').hidden = !onl;
+  $('calCard').hidden = onl;
+  document.querySelector('#vSerie .grid2').hidden = onl;
+  if (onl) return;
+  const ex = exo(S.exercise);
+  $('athlete').value = S.athlete; $('exercise').value = S.exercise; $('load').value = kg(S.load);
+  [...$('cut').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.cut)));
+  [...$('gap').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.autoGap)));
+  ['athlete','exercise','load','loadUp','loadDn'].forEach(id => $(id).disabled = S.recording);
+
+  let shown = null;
+  if (S.recording || (S.reps.length && S.liveSet)) shown = {...S.liveSet, reps:S.reps};
+  if (!S.recording){
+    const last = [...S.sets].reverse().find(s=>s.athlete===S.athlete && s.exercise===S.exercise);
+    shown = last || null;
+  }
+  const reps = shown ? shown.reps : [];
+  const load = shown ? shown.load : S.load, cut = shown ? (shown.cut||S.cut) : S.cut;
+
+  $('who').innerHTML = `${esc(athName(S.athlete))} <span>· ${ex.name} · ${kg(load)} kg</span>`;
+  $('setState').textContent = S.recording ? 'Grabando' : shown ? (shown.example ? 'Serie de ejemplo' : 'Última serie') : 'Lista para empezar';
+
+  const last = reps[reps.length-1];
+  const best = reps.length ? Math.max(...reps.map(r=>r.v)) : 0;
+  const vl = last ? (1-last.v/best)*100 : 0;
+  if (last){
+    const zi = zoneOf(last.v), z = ZONES[zi];
+    $('repno').textContent = `REP ${reps.length}`;
+    $('vel').innerHTML = `${fmt(last.v)}<small>m/s</small>`;
+    $('zone').style.setProperty('--zc', `var(${z.c})`); $('zbar').style.setProperty('--zc', `var(${z.c})`);
+    $('zone').querySelector('span').textContent = z.name;
+    [...$('zbar').children].forEach((s,i)=>s.classList.toggle('on', i<=zi));
+    $('tPeak').innerHTML = `${fmt(last.vp)}<small>m/s</small>`;
+    $('tPow').innerHTML = `${Math.round(power(load,last))}<small>W</small>`;
+    $('tRom').innerHTML = `${Math.round(last.rom*100)}<small>cm</small>`;
+    $('tVL').innerHTML = `${Math.round(vl)}<small>%</small>`;
+    $('tVLbox').className = 'tile' + (vl>cut ? ' bad' : vl>cut*0.75 ? ' warnv' : '');
+    const f = force(load,last), pp = peakPower(load,last);
+    $('tF').innerHTML = f!=null ? `${Math.round(f)}<small>N</small>` : '—';
+    $('tPP').innerHTML = pp!=null ? `${Math.round(pp)}<small>W</small>` : '—';
+    $('tTut').innerHTML = has(last.tut) ? `${fmt(last.tut,1)}<small>s</small>` : '—';
+    $('tEcc').innerHTML = has(last.ev) && last.ev>0 ? `${fmt(last.ev)}<small>m/s</small>` : '—';
+    drawCurve(last);
+    if (newRep){ $('vel').classList.remove('pop'); void $('vel').offsetWidth; $('vel').classList.add('pop'); }
+  } else {
+    $('repno').textContent = 'REP —';
+    $('vel').innerHTML = `—<small>m/s</small>`;
+    $('zone').style.setProperty('--zc','var(--muted)'); $('zone').querySelector('span').textContent = 'Esperando la primera repetición';
+    [...$('zbar').children].forEach(s=>s.classList.remove('on'));
+    ['tPeak','tPow','tRom','tVL','tF','tPP','tTut','tEcc'].forEach(id=>$(id).textContent='—'); $('tVLbox').className='tile';
+    $('curveWrap').hidden = true;
+  }
+  renderAlert(reps, vl, cut, best, shown);
+  renderCal();
+
+  $('go').className = 'go' + (S.recording ? ' stop' : '');
+  $('goTxt').textContent = S.recording ? 'Terminar serie' : 'Iniciar serie';
+  if (S.recording && !$('go').querySelector('.dot')) $('go').insertAdjacentHTML('afterbegin','<span class="dot"></span>');
+  if (!S.recording) { const d=$('go').querySelector('.dot'); d && d.remove(); $('timer').textContent = '0:00'; }
+
+  drawReps(reps, best, cut);
+  drawLiveProfile();
+  drawTodaySets();
+}
+
+const CAL_ICON = {
+  need:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg>',
+  busy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 1-9 9"/></svg>',
+  ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+};
+function calAgo(sec){
+  if (sec < 60) return 'recién';
+  const m = Math.round(sec/60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m/60); return `hace ${h} h ${m%60 ? (m%60)+' min' : ''}`.trim();
+}
+function renderCal(){
+  const card = $('calCard');
+  const busy = S.sensorState === 0;
+  const off = S.source === 'sensor' && !S.connected;
+  const done = S.calSec != null && S.calSec >= 0;
+  let mode = busy ? 'busy' : done ? 'ok' : 'need';
+  card.className = 'panel calcard ' + mode;
+  $('calIc').innerHTML = CAL_ICON[mode];
+  $('calBar').hidden = !busy;
+  $('calFill').style.width = `${Math.round((S.cal||0)*100)}%`;
+  $('calBtn').disabled = busy || off;
+  $('calBtn').textContent = done ? 'Recalibrar' : 'Calibrar';
+  if (off){ $('calTitle').textContent = 'Sensor sin conexión'; $('calText').textContent = 'Prendé la placa y conectate a su red para calibrar.'; return; }
+  if (busy){ $('calTitle').textContent = 'Calibrando…'; $('calText').textContent = 'Dejá la barra quieta un segundo.'; return; }
+  if (done){ $('calTitle').textContent = `Calibrado ${calAgo(S.calSec)}`;
+    $('calText').textContent = S.calSec > 3*3600 ? 'Pasó bastante tiempo: conviene recalibrar.' : 'Listo para medir. Recalibrá si cambiás el sensor de lugar.'; return; }
+  $('calTitle').textContent = 'Calibrá antes de empezar';
+  $('calText').textContent = 'Dejá el sensor quieto en la barra (o apoyado) y tocá Calibrar.';
+}
+function startCal(){
+  if (S.source === 'demo'){ // simulación
+    S.sensorState = 0; S.cal = 0; renderCal();
+    const t0 = Date.now(), iv = setInterval(() => { S.cal = Math.min(1, (Date.now()-t0)/1200); renderCal();
+      if (S.cal >= 1){ clearInterval(iv); S.sensorState = 1; S.calSec = 0; S.calLocal = Date.now(); renderCal(); } }, 100);
+    return;
+  }
+  S.sensorState = 0; S.cal = 0; renderCal();
+  cmd('cal');
+}
+$('calBtn').onclick = startCal;
+setInterval(() => { // en demo el "hace X min" se actualiza solo
+  if (S.source==='demo' && S.calLocal && S.sensorState===1){ S.calSec = (Date.now()-S.calLocal)/1000; if (S.tab==='Serie') renderCal(); }
+}, 15000);
+
+function renderAlert(reps, vl, cut, best, shown){
+  const al = $('alert');
+  if (S.recording && reps.length > 1 && vl > cut){ al.className='alert bad'; al.hidden=false;
+    al.innerHTML = `${ICON.warn}<span>Pérdida de ${Math.round(vl)}% · cortá la serie</span>`;
+  } else if (S.recording && !reps.length){ al.className='alert info'; al.hidden=false;
+    al.innerHTML = `${ICON.info}<span>${S.source==='demo' ? 'Modo demo: las repeticiones se simulan solas.' : 'Listo: arrancá cuando quieras.'}</span>`;
+  } else if (!S.recording && !shown && S.autoGap){ al.className='alert info'; al.hidden=false;
+    al.innerHTML = `${ICON.info}<span>La serie arranca sola con la primera rep y se guarda tras ${S.autoGap} s sin reps.</span>`;
+  } else if (!S.recording && shown && reps.length){ al.className = vl>cut ? 'alert bad' : 'alert ok'; al.hidden=false;
+    al.innerHTML = `${vl>cut?ICON.warn:ICON.ok}<span>${autoNote ? autoNote + '<br>' : ''}${reps.length} reps · mejor ${fmt(best)} m/s · pérdida final ${Math.round(vl)}%</span>`;
+  } else if (!S.recording && !S.athlete && S.source==='sensor'){ al.className='alert info'; al.hidden=false;
+    al.innerHTML = `${ICON.info}<span>Elegí o creá un atleta para que la serie quede en su historial.</span>`;
+  } else al.hidden = true;
+}
+
+function drawCurve(r){
+  if (!Array.isArray(r.c) || r.c.length < 4){ $('curveWrap').hidden = true; return; }
+  $('curveWrap').hidden = false;
+  const W=340, H=90, L=30, R=6, T=8, B=16;
+  const top = Math.max(0.5, ...r.c)*1.1, n = r.c.length;
+  const x = i => L + (W-L-R)*i/(n-1), y = v => T + (H-T-B)*(1 - Math.max(0,v)/top);
+  let s = '';
+  [0, top/2].forEach(v => s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v,1)}</text>`);
+  const pts = r.c.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  s += `<polygon points="${x(0)},${y(0)} ${pts} ${x(n-1)},${y(0)}" fill="color-mix(in srgb,var(--accent) 16%,transparent)"/>`;
+  s += `<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(r.v)}" y2="${y(r.v)}" stroke="var(--ink)" stroke-dasharray="4 4"/><text x="${W-R}" y="${y(r.v)-4}" text-anchor="end" class="vlab">VMP ${fmt(r.v)}</text>`;
+  s += `<text x="${L}" y="${H-3}">inicio</text><text x="${W-R}" y="${H-3}" text-anchor="end">${has(r.dur)?fmt(r.dur,2)+' s':'fin'}</text>`;
+  $('curve').innerHTML = s;
+}
+
+function drawReps(reps, best, cut){
+  const W=340, H=170, L=30, R=8, T=20, B=24, n=Math.max(8, reps.length);
+  const top = Math.max(1.0, best*1.18);
+  const y = v => T + (H-T-B)*(1 - v/top);
+  const slot = (W-L-R)/n, bw = Math.min(30, slot*0.66);
+  let s = '';
+  const step = top > 1.2 ? 0.5 : 0.25;
+  for (let v=0; v<=top+1e-9; v+=step){ s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v,v%0.5?2:1)}</text>`; }
+  if (reps.length){
+    const cv = best*(1-cut/100);
+    reps.forEach((r,i)=>{
+      const vl = (1-r.v/best)*100;
+      const col = vl>cut ? 'var(--bad)' : vl>cut*0.75 ? 'var(--warn)' : 'var(--ok)';
+      const x = L + slot*i + (slot-bw)/2;
+      s += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${y(0)-y(r.v)}" rx="4" fill="${col}"/>`;
+      s += `<text class="vlab" x="${x+bw/2}" y="${y(r.v)-5}" text-anchor="middle">${fmt(r.v)}</text>`;
+    });
+    s += `<line x1="${L}" x2="${W-R}" y1="${y(cv)}" y2="${y(cv)}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    s += `<text x="${W-R}" y="${y(cv)-5}" text-anchor="end" style="fill:var(--bad)">corte −${cut}%</text>`;
+  } else s += `<text x="${(W+L)/2}" y="${H/2}" text-anchor="middle" style="font-size:13px">Las repeticiones aparecen acá</text>`;
+  for (let i=0;i<n;i++) s += `<text x="${L+slot*i+slot/2}" y="${H-7}" text-anchor="middle">${i+1}</text>`;
+  $('repChart').innerHTML = s;
+  $('chartSub').textContent = reps.length ? `mejor ${fmt(best)} m/s` : '';
+}
+
+// Gráfico del perfil carga-velocidad (puntos + recta + 1RM). lines: [{fit,color,label}]
+function lvSVG(pts, lines, mvt, W=340, H=190){
+  const L=34, R=10, T=12, B=28;
+  const xsMax = Math.max(100, ...pts.map(p=>p.x*1.25), ...lines.filter(l=>l.fit.ok).map(l=>l.fit.rm*1.08));
+  const maxY = Math.max(1.4, ...pts.map(p=>p.y*1.1), ...lines.filter(l=>l.fit.ok).map(l=>l.fit.b*1.05));
+  const x = v => L + (W-L-R)*v/xsMax, y = v => T + (H-T-B)*(1-v/maxY);
+  let s = '';
+  const xstep = xsMax > 220 ? 50 : xsMax > 110 ? 25 : 20;
+  for (let v=0; v<=xsMax; v+=xstep) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H-B}" stroke="var(--line)"/><text x="${x(v)}" y="${H-10}" text-anchor="middle">${v}</text>`;
+  for (let v=0; v<=maxY+1e-9; v+=0.5) s += `<text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v,1)}</text>`;
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)"/>`;
+  s += `<line x1="${L}" x2="${W-R}" y1="${y(mvt)}" y2="${y(mvt)}" stroke="var(--muted)" stroke-dasharray="3 4"/><text x="${L+4}" y="${y(mvt)-5}">VMR ${fmt(mvt)} m/s</text>`;
+  lines.forEach((l, li) => { if (!l.fit.ok) return; const f = l.fit;
+    s += `<line x1="${x(0)}" y1="${y(f.b)}" x2="${x(f.rm)}" y2="${y(mvt)}" stroke="${l.color}" stroke-width="2" ${l.dash?'stroke-dasharray="6 4"':''}/>`;
+    s += `<circle cx="${x(f.rm)}" cy="${y(mvt)}" r="5.5" fill="var(--surface)" stroke="${l.color}" stroke-width="2.5"/>`;
+    const ly = li % 2 ? y(mvt)+18 : y(mvt)-10, lx = Math.min(x(f.rm), W-R-14);
+    s += `<text x="${lx}" y="${ly}" text-anchor="middle" class="vlab" style="fill:${l.color}">${Math.round(f.rm)} kg</text>`; });
+  pts.forEach(p => s += `<circle cx="${x(p.x)}" cy="${y(p.y)}" r="${p.live?6:4.5}" fill="${p.color || (p.live?'var(--warn)':'var(--ink)')}" stroke="var(--surface)" stroke-width="1.5"/>`);
+  s += `<text x="${W-R}" y="${H-10}" text-anchor="end" style="fill:var(--ink)">kg</text>`;
+  return s;
+}
+function drawLiveProfile(){
+  const ex = exo(S.exercise);
+  const extra = (S.liveSet && S.reps.length && S.recording) ? [{x:S.liveSet.load, y:Math.max(...S.reps.map(r=>r.v)), live:true}] : [];
+  const P = S.athlete ? profileOf(S.athlete, S.exercise, extra) : fitLV(extra, ex.mvt);
+  $('profChart').innerHTML = lvSVG(P.pts, [{fit:P, color:'var(--accent)'}], ex.mvt);
+  $('orm').innerHTML = P.ok ? `${Math.round(P.rm)}<small> kg</small>` : '—';
+  $('profSub').textContent = `${athName(S.athlete)} · ${ex.name}`;
+  $('profNote').textContent = P.ok
+    ? `Últimas 3 semanas (R² ${fmt(P.r2)}). El 1RM es donde la recta cruza la velocidad mínima al 1RM (VMR) de ${ex.name.toLowerCase()}.`
+    : 'Con series a dos cargas distintas o más se estima el 1RM sin test máximo.';
+}
+function setRow(s, showAth){
+  const e = exo(s.exercise), hh = new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
+    <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b>${s.example?'<span class="tag">EJEMPLO</span>':''}<br>${s.reps.length} reps · mejor ${fmt(s.best)} · media ${fmt(s.mean)} m/s · ${hh}</div>
+    <div class="vlp ${s.vl>(s.cut||20)?'bad':'ok'}">−${Math.round(s.vl)}%</div></div>`;
+}
+function drawTodaySets(){
+  const today = dayKey(Date.now());
+  const list = S.sets.filter(s=>dayKey(s.time)===today).reverse();
+  $('todaySub').textContent = list.length ? `${list.length} series` : '';
+  $('todaySets').innerHTML = list.length ? list.map(s=>setRow(s, true)).join('') : '<div class="empty">Todavía no hay series hoy.</div>';
+}
+
+// =====================================================================
+// Hoja de edición de una serie
+// =====================================================================
+function openSheet(html){ $('sheetCard').innerHTML = html; $('sheet').hidden = false; }
+function closeSheet(){ $('sheet').hidden = true; }
+$('sheet').onclick = e => { if (e.target === $('sheet')) closeSheet(); };
+function editSet(id){
+  const s = S.sets.find(x=>x.id===id); if (!s) return;
+  const opts = `<option value="">Sin atleta</option>` + S.athletes.map(a=>`<option value="${a.id}" ${a.id===s.athlete?'selected':''}>${esc(a.name)}</option>`).join('');
+  const exs = EXERCISES.map(e=>`<option value="${e.id}" ${e.id===s.exercise?'selected':''}>${e.name}</option>`).join('');
+  openSheet(`<h3>Editar serie</h3>
+    <div class="note" style="margin:0">${dLong(s.time)} · ${s.reps.length} reps · mejor ${fmt(s.best)} m/s</div>
+    <label class="field"><span class="label">Atleta</span><select class="sel" id="esAth">${opts}</select></label>
+    <label class="field"><span class="label">Ejercicio</span><select class="sel" id="esEx">${exs}</select></label>
+    <label class="field"><span class="label">Carga (kg)</span><input class="txt" id="esLoad" inputmode="decimal" value="${kg(s.load)}"></label>
+    <table class="mini"><tr><th>Rep</th><th>VMP</th><th>Pico</th><th>Rec.</th><th>Pot.</th></tr>
+      ${s.reps.map((r,i)=>`<tr><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(s.load,r))} W</td></tr>`).join('')}</table>
+    <div class="row"><button class="btn1" id="esSave">Guardar</button><button class="btn2" id="esCancel">Cancelar</button><button class="btn2 danger" id="esDel" style="margin-left:auto">Borrar serie</button></div>`);
+  $('esCancel').onclick = closeSheet;
+  $('esSave').onclick = () => {
+    const l = parseFloat($('esLoad').value.replace(',','.'));
+    s.athlete = $('esAth').value; s.exercise = $('esEx').value; if (!isNaN(l) && l >= 0) s.load = l;
+    saveAll(); closeSheet(); renderAll();
+  };
+  $('esDel').onclick = () => { if (!confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); saveAll(); closeSheet(); renderAll(); };
+}
+document.addEventListener('click', e => { const r = e.target.closest('[data-set]'); if (r) editSet(r.dataset.set); });
+
+// =====================================================================
+// Atletas
+// =====================================================================
+function athleteForm(a){
+  const isNew = !a; a = a || {name:'', pos:'', bw:''};
+  openSheet(`<h3>${isNew?'Nuevo atleta':'Editar atleta'}</h3>
+    <label class="field"><span class="label">Nombre</span><input class="txt" id="afName" value="${esc(a.name)}" autocomplete="off"></label>
+    <div class="setup">
+      <label class="field"><span class="label">Puesto / grupo</span><input class="txt" id="afPos" value="${esc(a.pos||'')}" autocomplete="off"></label>
+      <label class="field"><span class="label">Peso corporal (kg)</span><input class="txt" id="afBw" inputmode="decimal" value="${a.bw?kg(a.bw):''}"></label>
+    </div>
+    <div class="row"><button class="btn1" id="afSave">${isNew?'Crear':'Guardar'}</button><button class="btn2" id="afCancel">Cancelar</button>
+      ${isNew?'':'<button class="btn2 danger" id="afDel" style="margin-left:auto">Borrar atleta</button>'}</div>`);
+  setTimeout(()=>$('afName').focus(), 50);
+  $('afCancel').onclick = closeSheet;
+  $('afSave').onclick = () => {
+    const name = $('afName').value.trim(); if (!name) return $('afName').focus();
+    const bw = parseFloat($('afBw').value.replace(',','.'));
+    if (isNew){ const n = {id:uid('a'), name, pos:$('afPos').value.trim(), bw:isNaN(bw)?null:bw, created:Date.now()}; S.athletes.push(n); S.athlete = n.id; }
+    else { a.name = name; a.pos = $('afPos').value.trim(); a.bw = isNaN(bw)?null:bw; }
+    saveAll(); savePrefs(); closeSheet(); fillAthleteSelects(); renderAll();
+  };
+  if (!isNew) $('afDel').onclick = () => {
+    const n = S.sets.filter(s=>s.athlete===a.id).length;
+    if (!confirm(`¿Borrar a ${a.name}${n?` y sus ${n} series`:''}?`)) return;
+    S.athletes = S.athletes.filter(x=>x.id!==a.id); S.sets = S.sets.filter(s=>s.athlete!==a.id);
+    if (S.athlete===a.id) S.athlete=''; S.detail = null;
+    saveAll(); savePrefs(); closeSheet(); fillAthleteSelects(); renderAll();
+  };
+}
+function renderAtletas(){
+  $('athList').hidden = !!S.detail; $('athDetail').hidden = !S.detail;
+  $('onlineWelcome').hidden = !(S.online && !S.athletes.some(a=>!a.example));
+  $('athNew').hidden = S.online && S.source !== 'demo';
+  if (!S.detail){
+    $('athItems').innerHTML = S.athletes.length ? S.athletes.map(a=>{
+      const ss = S.sets.filter(s=>s.athlete===a.id);
+      const last = ss.length ? Math.max(...ss.map(s=>s.time)) : null;
+      const days = new Set(ss.map(s=>dayKey(s.time))).size;
+      return `<div class="item tap" data-ath="${a.id}"><div class="avatar">${esc(a.name.trim().slice(0,1).toUpperCase())}</div>
+        <div class="meta"><b>${esc(a.name)}</b>${a.example?'<span class="tag">EJEMPLO</span>':''}<br>${a.pos?esc(a.pos)+' · ':''}${days} sesiones${last?' · última '+dShort(last):''}</div><div class="chev">›</div></div>`;
+    }).join('') : `<div class="empty">${S.online ? 'Todavía no hay datos en esta versión online.' : 'Todavía no cargaste atletas. Tocá «Nuevo atleta» para empezar.'}</div>`;
+    return;
+  }
+  const a = athOf(S.detail); if (!a){ S.detail = null; return renderAtletas(); }
+  $('adName').textContent = a.name;
+  $('adMeta').textContent = [a.pos, a.bw?`${kg(a.bw)} kg`:''].filter(Boolean).join(' · ') || 'Sin datos extra';
+  const exIds = [...new Set(S.sets.filter(s=>s.athlete===a.id).map(s=>s.exercise))];
+  $('adSummary').innerHTML = exIds.length ? `<table class="mini"><tr><th>Ejercicio</th><th>1RM est.</th><th>Mejor VMP</th><th>Carga máx.</th><th>Sesiones</th></tr>${exIds.map(ex=>{
+      const rm = currentRM(a.id, ex), ses = sessionsOf(a.id, ex);
+      return `<tr><td>${exo(ex).name}</td><td>${rm?Math.round(rm)+' kg':'—'}</td><td>${fmt(Math.max(...ses.map(o=>o.best)))} m/s</td><td>${kg(Math.max(...ses.map(o=>o.maxLoad)))} kg</td><td>${ses.length}</td></tr>`;
+    }).join('')}</table>` : '<div class="empty">Sin series todavía. Tocá «Entrenar ahora».</div>';
+  // sesiones por día (todas las series del día, de todos los ejercicios)
+  const byDay = new Map();
+  S.sets.filter(s=>s.athlete===a.id).forEach(s=>{ const k = dayKey(s.time); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(s); });
+  const days = [...byDay.entries()].sort((x,y)=>y[1][0].time-x[1][0].time);
+  $('adSessCount').textContent = days.length ? `${days.length}` : '';
+  $('adSessions').innerHTML = days.length ? days.map(([k, ss], i)=>{
+    ss.sort((x,y)=>x.time-y.time);
+    const exs = [...new Set(ss.map(s=>exo(s.exercise).name))].join(', ');
+    return `<details class="sess" ${i===0?'open':''}><summary><b>${dLong(ss[0].time)}</b><span>${exs} · ${ss.length} series</span></summary>
+      <div class="list" style="margin-top:6px">${ss.map(s=>setRow(s,false)).join('')}</div></details>`;
+  }).join('') : '<div class="empty">Sin sesiones.</div>';
+}
+document.addEventListener('click', e => { const r = e.target.closest('[data-ath]'); if (r){ S.detail = r.dataset.ath; renderAtletas(); window.scrollTo(0,0); } });
+$('athNew').onclick = () => athleteForm(null);
+$('athBack').onclick = () => { S.detail = null; renderAtletas(); };
+$('adEdit').onclick = () => athleteForm(athOf(S.detail));
+$('adTrain').onclick = () => { S.athlete = S.detail; savePrefs(); go('Serie'); };
+$('adProgress').onclick = () => { S.pgAth = S.detail; const ex = S.sets.find(s=>s.athlete===S.detail); if (ex) S.pgEx = ex.exercise; savePrefs(); go('Progreso'); };
+$('adReport').onclick = () => openReport(S.detail);
+
+// =====================================================================
+// Progreso
+// =====================================================================
+// Línea temporal: series [{name,color,pts:[{t,y}]}]
+function timeSVG(series, {W=340, H=180, yFmt=v=>fmt(v,2), unit=''}={}){
+  const all = series.flatMap(s=>s.pts);
+  if (!all.length) return `<text x="${W/2}" y="${H/2}" text-anchor="middle" style="font-size:13px">Sin datos suficientes</text>`;
+  const L=40, R=10, T=14, B=26;
+  let t0 = Math.min(...all.map(p=>p.t)), t1 = Math.max(...all.map(p=>p.t));
+  if (t1 - t0 < DAY) { t0 -= 3*DAY; t1 += 3*DAY; }
+  let y0 = Math.min(...all.map(p=>p.y)), y1 = Math.max(...all.map(p=>p.y));
+  const pad = (y1-y0)*0.15 || Math.abs(y1)*0.1 || 1; y0 -= pad; y1 += pad;
+  const x = t => L + (W-L-R)*(t-t0)/(t1-t0), y = v => T + (H-T-B)*(1-(v-y0)/(y1-y0));
+  let s = '';
+  for (let i=0;i<=3;i++){ const v = y0 + (y1-y0)*i/3; s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${yFmt(v)}</text>`; }
+  const nt = Math.min(5, new Set(all.map(p=>dayKey(p.t))).size);
+  for (let i=0;i<nt;i++){ const t = t0 + (t1-t0)*(nt===1?0.5:i/(nt-1)); const an = nt===1?'middle':i===0?'start':i===nt-1?'end':'middle';
+    s += `<text x="${x(t)}" y="${H-8}" text-anchor="${an}">${dShort(t)}</text>`; }
+  series.forEach(se => {
+    if (!se.pts.length) return;
+    const p = se.pts.slice().sort((a,b)=>a.t-b.t);
+    if (p.length > 1) s += `<polyline points="${p.map(q=>`${x(q.t).toFixed(1)},${y(q.y).toFixed(1)}`).join(' ')}" fill="none" stroke="${se.color}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    p.forEach((q,i) => s += `<circle cx="${x(q.t)}" cy="${y(q.y)}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="1.5"/>`);
+    const lq = p[p.length-1];
+    if (series.length === 1) s += `<text x="${Math.min(x(lq.t), W-R-2)}" y="${y(lq.y)-9}" text-anchor="end" class="vlab">${yFmt(lq.y)}${unit}</text>`;
+  });
+  return s;
+}
+const SC = ['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+function progressData(ath, ex, sinceMs=0){
+  const ses = sessionsOf(ath, ex, sinceMs);
+  const loadCount = new Map();
+  ses.forEach(o => new Set(o.sets.map(s=>s.load)).forEach(l => loadCount.set(l, (loadCount.get(l)||0)+1)));
+  const refLoads = [...loadCount.entries()].filter(e=>e[1]>=2).sort((a,b)=>b[1]-a[1]||a[0]-b[0]).slice(0,3).map(e=>e[0]).sort((a,b)=>a-b);
+  const rmPts = ses.filter(o=>o.fit.ok).map(o=>({t:o.time, y:o.fit.rm}));
+  const powPts = ses.map(o=>({t:o.time, y:o.pmax}));
+  const velSeries = refLoads.map((l,i)=>({name:`${kg(l)} kg`, color:SC[i], pts:ses.filter(o=>o.bestAt(l)!=null).map(o=>({t:o.time, y:o.bestAt(l)}))}));
+  const fits = ses.filter(o=>o.fit.ok);
+  return {ses, rmPts, powPts, velSeries, refLoads, firstFit: fits[0], lastFit: fits[fits.length-1]};
+}
+function delta(a, b, unit, d=0, pct=true){
+  if (a==null || b==null) return '';
+  const diff = b - a, p = a ? diff/a*100 : 0;
+  const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
+  return `<div class="d ${cls}">${diff>=0?'+':''}${fmt(diff,d)}${unit}${pct?` (${diff>=0?'+':''}${fmt(p,0)}%)`:''} vs. primera</div>`;
+}
+function renderProgreso(){
+  $('pgAth').value = S.pgAth;
+  const exIds = [...new Set(S.sets.filter(s=>s.athlete===S.pgAth).map(s=>s.exercise))];
+  if (exIds.length && !exIds.includes(S.pgEx)) S.pgEx = exIds[0];
+  $('pgEx').innerHTML = (exIds.length ? exIds : [S.pgEx]).map(id=>`<option value="${id}">${exo(id).name}</option>`).join('');
+  $('pgEx').value = S.pgEx;
+  const body = $('pgBody');
+  if (!S.pgAth){ body.innerHTML = '<section class="panel"><div class="empty">Cargá un atleta y hacé algunas series para ver su progreso.</div></section>'; return; }
+  const D = progressData(S.pgAth, S.pgEx), ex = exo(S.pgEx);
+  if (!D.ses.length){ body.innerHTML = `<section class="panel"><div class="empty">${esc(athName(S.pgAth))} todavía no tiene series de ${ex.name.toLowerCase()}.</div></section>`; return; }
+  const rm0 = D.rmPts[0], rm1 = D.rmPts[D.rmPts.length-1];
+  const p0 = D.powPts[0], p1 = D.powPts[D.powPts.length-1];
+  const v0 = D.firstFit ? D.firstFit.fit.b : null, v1 = D.lastFit ? D.lastFit.fit.b : null;
+  body.innerHTML = `
+    <section class="panel"><div class="tiles">
+      <div class="tile"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):'—'}<small>kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y, rm1.y, ' kg'):''}</div>
+      <div class="tile"><div class="label">Pot. media máx.</div><div class="v">${Math.round(p1.y)}<small>W</small></div>${D.powPts.length>1?delta(p0.y, p1.y, ' W'):''}</div>
+      <div class="tile"><div class="label">V0 del perfil</div><div class="v">${fmt(v1)}<small>m/s</small></div>${D.firstFit&&D.lastFit&&D.firstFit!==D.lastFit?delta(v0, v1, '', 2, false):''}</div>
+      <div class="tile"><div class="label">Sesiones</div><div class="v">${D.ses.length}</div><div class="d">desde ${dShort(D.ses[0].time)}</div></div>
+    </div></section>
+    <div class="grid2">
+      <section class="panel"><div class="phead"><h2>1RM estimado</h2><span class="sub">por sesión con 2+ cargas</span></div>
+        <svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'var(--s1)', pts:D.rmPts}], {yFmt:v=>Math.round(v), unit:' kg'})}</svg></section>
+      <section class="panel"><div class="phead"><h2>Velocidad a carga fija</h2><span class="sub">mejor VMP de cada sesión</span></div>
+        <svg class="chart" viewBox="0 0 340 180">${timeSVG(D.velSeries)}</svg>
+        <div class="legend">${D.velSeries.map(s=>`<span><i class="ln" style="background:${s.color}"></i>${s.name}</span>`).join('') || '<span>Repetí una misma carga en 2 sesiones para ver esta curva.</span>'}</div>
+        <p class="note">A la misma carga, más velocidad = mejora de fuerza.</p></section>
+      <section class="panel"><div class="phead"><h2>Potencia media máxima</h2><span class="sub">mejor rep de cada sesión</span></div>
+        <svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'var(--s3)', pts:D.powPts}], {yFmt:v=>Math.round(v), unit:' W'})}</svg></section>
+      <section class="panel"><div class="phead"><h2>Perfil carga-velocidad</h2><span class="sub">primera vs. última sesión</span></div>
+        <svg class="chart" viewBox="0 0 340 190">${lvSVG(
+          D.firstFit ? D.firstFit.sets.map(s=>({x:s.load,y:s.best,color:'var(--muted)'})).concat(D.lastFit!==D.firstFit?D.lastFit.sets.map(s=>({x:s.load,y:s.best,color:'var(--s1)'})):[]) : [],
+          D.firstFit ? [{fit:D.firstFit.fit, color:'var(--muted)', dash:true}].concat(D.lastFit!==D.firstFit?[{fit:D.lastFit.fit, color:'var(--s1)'}]:[]) : [], ex.mvt)}</svg>
+        <div class="legend">${D.firstFit?`<span><i class="ln" style="background:var(--muted)"></i>${dShort(D.firstFit.time)}</span>`:''}${D.lastFit&&D.lastFit!==D.firstFit?`<span><i class="ln" style="background:var(--s1)"></i>${dShort(D.lastFit.time)}</span>`:''}${!D.firstFit?'<span>Hacé una sesión con 2+ cargas para ver el perfil.</span>':''}</div></section>
+    </div>
+    <div class="row" style="margin-top:0"><button class="btn1" id="pgReport">Informe PDF de ${esc(athName(S.pgAth))}</button></div>`;
+  $('pgReport').onclick = () => openReport(S.pgAth);
+}
+$('pgAth').onchange = e => { S.pgAth = e.target.value; savePrefs(); renderProgreso(); };
+$('pgEx').onchange = e => { S.pgEx = e.target.value; savePrefs(); renderProgreso(); };
+
+// =====================================================================
+// Informe
+// =====================================================================
+let repAth = null;
+function openReport(ath){ repAth = ath; $('report').hidden = false; $('report').scrollTop = 0; buildReport(); }
+function buildReport(){
+  const a = athOf(repAth); if (!a) return;
+  const weeks = +$('rRange').value, since = weeks ? Date.now() - weeks*7*DAY : 0;
+  const sets = S.sets.filter(s=>s.athlete===a.id && s.time>=since);
+  const exIds = [...new Set(sets.map(s=>s.exercise))];
+  const days = new Set(sets.map(s=>dayKey(s.time)));
+  const t0 = sets.length ? Math.min(...sets.map(s=>s.time)) : null, t1 = sets.length ? Math.max(...sets.map(s=>s.time)) : null;
+  let h = `<div class="rh"><div><div class="brand">TRAK<b>VBT</b></div><h1>${esc(a.name)}</h1>
+      <div style="color:#5A6576;font-size:14px">${[a.pos, a.bw?`${kg(a.bw)} kg corporales`:''].filter(Boolean).map(esc).join(' · ')}</div></div>
+    <div class="rmeta"><b>Informe de entrenamiento por velocidad</b><br>${t0?`${dShort(t0)} – ${dShort(t1)}`:'Sin datos'}<br>${days.size} sesiones · ${sets.length} series<br>Generado ${dLong(Date.now())}</div></div>`;
+  if (!exIds.length) h += '<p>No hay series en el período elegido.</p>';
+  exIds.forEach(ex => {
+    const e = exo(ex), D = progressData(a.id, ex, since);
+    const P = profileOf(a.id, ex);
+    const rm0 = D.rmPts[0], rm1 = D.rmPts[D.rmPts.length-1];
+    const lastS = D.ses[D.ses.length-1];
+    h += `<div class="exblock"><h2>${e.name}</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):(P.ok?Math.round(P.rm):'—')}<small> kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y,rm1.y,' kg'):''}</div>
+        <div class="kpi"><div class="label">Mejor VMP</div><div class="v">${fmt(Math.max(...D.ses.map(o=>o.best)))}<small> m/s</small></div></div>
+        <div class="kpi"><div class="label">Pot. media máx.</div><div class="v">${Math.round(Math.max(...D.powPts.map(p=>p.y)))}<small> W</small></div>${D.powPts.length>1?delta(D.powPts[0].y,D.powPts[D.powPts.length-1].y,' W'):''}</div>
+        <div class="kpi"><div class="label">Sesiones</div><div class="v">${D.ses.length}</div></div>
+      </div>
+      <div class="two">
+        <div><h3>Perfil carga-velocidad</h3><svg class="chart" viewBox="0 0 340 190">${lvSVG(
+          (D.firstFit?D.firstFit.sets.map(s=>({x:s.load,y:s.best,color:'#8B97A8'})):[]).concat(D.lastFit&&D.lastFit!==D.firstFit?D.lastFit.sets.map(s=>({x:s.load,y:s.best,color:'#2350E6'})):[]),
+          (D.firstFit?[{fit:D.firstFit.fit,color:'#8B97A8',dash:D.lastFit!==D.firstFit}]:[]).concat(D.lastFit&&D.lastFit!==D.firstFit?[{fit:D.lastFit.fit,color:'#2350E6'}]:[]), e.mvt)}</svg>
+          <div class="legend">${D.firstFit?`<span><i class="ln" style="background:#8B97A8"></i>${dShort(D.firstFit.time)}</span>`:''}${D.lastFit&&D.lastFit!==D.firstFit?`<span><i class="ln" style="background:#2350E6"></i>${dShort(D.lastFit.time)}</span>`:''}</div></div>
+        <div><h3>1RM estimado por sesión</h3><svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'#2350E6', pts:D.rmPts}], {yFmt:v=>Math.round(v), unit:' kg'})}</svg></div>
+        <div><h3>Velocidad a carga fija</h3><svg class="chart" viewBox="0 0 340 180">${timeSVG(D.velSeries)}</svg>
+          <div class="legend">${D.velSeries.map(s=>`<span><i class="ln" style="background:${s.color}"></i>${s.name}</span>`).join('')}</div></div>
+        <div><h3>Potencia media máxima</h3><svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'#13917F', pts:D.powPts}], {yFmt:v=>Math.round(v), unit:' W'})}</svg></div>
+      </div>
+      <h3>Sesiones</h3>
+      <table class="mini"><tr><th>Fecha</th><th>Series</th><th>Carga máx.</th><th>Mejor VMP</th><th>1RM est.</th><th>Pot. máx.</th></tr>
+        ${D.ses.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${kg(o.maxLoad)} kg</td><td>${fmt(o.best)}</td><td>${o.fit.ok?Math.round(o.fit.rm)+' kg':'—'}</td><td>${Math.round(o.pmax)} W</td></tr>`).join('')}</table>
+      ${lastS?`<h3>Última sesión · ${dLong(lastS.time)}</h3>
+      <table class="mini"><tr><th>Carga</th><th>Reps</th><th>Mejor VMP</th><th>Media</th><th>Pico</th><th>Pérdida</th><th>Pot. media</th></tr>
+        ${lastS.sets.map(s=>{ const vp = Math.max(...s.reps.map(r=>r.vp||0)); const pw = Math.max(...s.reps.map(r=>power(s.load,r)));
+          return `<tr><td>${kg(s.load)} kg</td><td>${s.reps.length}</td><td>${fmt(s.best)}</td><td>${fmt(s.mean)}</td><td>${fmt(vp)}</td><td class="${s.vl>(s.cut||20)?'bad':''}">${Math.round(s.vl)}%</td><td>${Math.round(pw)} W</td></tr>`; }).join('')}</table>`:''}
+    </div>`;
+  });
+  h += `<div class="foot">VMP: velocidad media propulsiva. 1RM estimado con la recta carga-velocidad (mejor rep de cada serie) y la velocidad mínima al 1RM de cada ejercicio. Potencia media propulsiva medida por el sensor TrakVBT.</div>`;
+  $('rPage').innerHTML = h;
+}
+$('rClose').onclick = () => { $('report').hidden = true; };
+$('rRange').onchange = buildReport;
+$('rPrint').onclick = () => {
+  try { window.print(); } catch(e){ alert('Para guardar el PDF abrí la app en Safari y usá Compartir › Imprimir.'); }
+};
+
+// =====================================================================
+// Sensor y datos
+// =====================================================================
+function renderSensor(){
+  const on = S.source === 'sensor';
+  $('snH1').textContent = S.online ? 'Datos' : 'Sensor';
+  $('snPanel').hidden = S.online;
+  $('sendOnline').hidden = !on;
+  $('pasteRow').hidden = !S.online;
+  $('onlineUrl').value = S.onlineUrl || '';
+  $('dataNote').textContent = S.online
+    ? 'Estos datos quedan guardados en este dispositivo. Para sumar series nuevas, enviálas desde la app del sensor o importá un respaldo.'
+    : 'Los atletas y las series se guardan en este teléfono. Exportá un respaldo de vez en cuando o para pasar los datos a otro dispositivo.';
+  $('snSub').textContent = on ? (S.connected ? 'conectado' : 'sin conexión') : 'modo demo';
+  const kv = (l, v) => `<div class="tile"><div class="label">${l}</div><div class="v" style="font-size:22px">${v}</div></div>`;
+  $('snKv').innerHTML = on
+    ? kv('Batería', S.battery==null?'—':S.battery<0?'USB':`${S.battery}%`) + kv('Lecturas', S.hz?`${S.hz}<small>Hz</small>`:'—') + kv('Estado', S.sensorState===0?'Calibrando':S.sensorState===1?'Listo':'—') + kv('Firmware', S.fw||'—')
+    : '<div class="empty" style="grid-column:1/-1">Estás viendo la app en modo demo. Conectate a la red del sensor y abrí http://trakvbt.local.</div>';
+  $('snCal').disabled = $('snRestart').disabled = !on || !S.connected;
+  const real = S.sets.filter(s=>!s.example).length, ath = S.athletes.filter(a=>!a.example).length;
+  $('dataSub').textContent = `${ath} atletas · ${real} series`;
+  $('clearEx').hidden = !S.sets.some(s=>s.example) && !S.athletes.some(a=>a.example);
+}
+function toastIn(id, t){ const el = $(id); if (!el) return; el.textContent = t; setTimeout(()=>{ if (el.textContent===t) el.textContent=''; }, 3500); }
+$('snCal').onclick = () => { startCal(); toastIn('snToast','Recalibrando: dejá la barra quieta'); };
+$('snRestart').onclick = () => { if (!confirm('¿Reiniciar el sensor? Tarda unos segundos en volver.')) return;
+  fetch('/restart').catch(()=>{}); toastIn('snToast','Reiniciando…'); };
+
+function exportData(){
+  const data = {app:'TrakVBT', version:1, exported:new Date().toISOString(),
+    exercises:EXERCISES, athletes:S.athletes.filter(a=>!a.example).map(({v0,rm,...a})=>a), sets:S.sets.filter(s=>!s.example)};
+  const text = JSON.stringify(data);
+  const name = `trakvbt-${dayKey(Date.now())}.json`;
+  const blob = new Blob([text], {type:'application/json'});
+  try {
+    const file = new File([blob], name, {type:'application/json'});
+    if (navigator.canShare && navigator.canShare({files:[file]})) { navigator.share({files:[file], title:'Respaldo TrakVBT'}).catch(()=>{}); return; }
+  } catch(e){}
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  toastIn('dToast','Respaldo descargado');
+}
+function importData(text){
+  let d = text;
+  if (typeof text === 'string'){ try { d = JSON.parse(text); } catch(e){ toastIn('dToast','El archivo no es un respaldo válido'); return null; } }
+  if (!d || d.app !== 'TrakVBT' || !Array.isArray(d.sets)){ toastIn('dToast','El archivo no es un respaldo de TrakVBT'); return null; }
+  // datos reales: se quitan los ejemplos
+  if (S.athletes.some(a=>a.example) || S.sets.some(s=>s.example)){ S.athletes = S.athletes.filter(a=>!a.example); S.sets = S.sets.filter(s=>!s.example); S.demo = false; }
+  let na = 0, ns = 0, nu = 0;
+  (d.athletes||[]).forEach(a => { if (!a || !a.id) return;
+    const i = S.athletes.findIndex(x=>x.id===a.id);
+    if (i < 0) { S.athletes.push(a); na++; } else S.athletes[i] = {...S.athletes[i], ...a}; });
+  d.sets.forEach(s => { if (!s || !s.id || !Array.isArray(s.reps) || !s.reps.length) return;
+    const i = S.sets.findIndex(x=>x.id===s.id);
+    if (i < 0) { S.sets.push(finishSet(s)); ns++; } else { S.sets[i] = finishSet({...S.sets[i], ...s}); nu++; } });
+  S.sets.sort((a,b)=>a.time-b.time);
+  saveAll(); fillAthleteSelects(); renderAll();
+  const pl = (n, a, b) => `${n} ${n===1?a:b}`;
+  const msg = `Recibido: ${pl(ns,'serie nueva','series nuevas')}${nu?`, ${pl(nu,'actualizada','actualizadas')}`:''}${na?`, ${pl(na,'atleta nuevo','atletas nuevos')}`:''}`;
+  toastIn('dToast', msg);
+  return msg;
+}
+
+// ---------- Envío placa → TrakVBT online (datos comprimidos en el enlace) ----------
+const b64u = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); };
+const unb64u = str => { const b = atob(str.replace(/-/g,'+').replace(/_/g,'/')); const u = new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+async function packData(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if (typeof CompressionStream !== 'undefined'){
+    const gz = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    return 'g' + b64u(gz);
+  }
+  return 'j' + b64u(raw);
+}
+async function unpackData(str){
+  const bytes = unb64u(str.slice(1));
+  if (str[0] === 'g'){
+    const out = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function payload(stripCurves){
+  return {app:'TrakVBT', version:1, exported:new Date().toISOString(),
+    athletes:S.athletes.filter(a=>!a.example).map(({v0,rm,...a})=>a),
+    sets:S.sets.filter(s=>!s.example).map(s => stripCurves ? {...s, reps:s.reps.map(({c,...r})=>r)} : s)};
+}
+async function sendOnline(){
+  let url = ($('onlineUrl').value || '').trim();
+  if (!/^https:\/\//.test(url)){ toastIn('dToast','Escribí la dirección de TrakVBT online (empieza con https://)'); $('onlineUrl').focus(); return; }
+  if (!url.endsWith('/') && !/\.html?$/.test(url)) url += '/';
+  S.onlineUrl = url; savePrefs();
+  const data = payload(true);
+  if (!data.sets.length && !data.athletes.length) return toastIn('dToast','Todavía no hay datos para enviar');
+  try {
+    const packed = await packData(data);
+    location.href = `${url}#importar=${packed}`;
+  } catch(e){ toastIn('dToast','No se pudo preparar el envío. Usá Exportar respaldo.'); }
+}
+function copyText(text){
+  // en la placa (http) no hay API de portapapeles: se usa el método clásico
+  const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
+  ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
+  ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+  ta.remove(); return ok;
+}
+async function copyForOnline(){
+  const data = payload(true);
+  if (!data.sets.length && !data.athletes.length) return toastIn('dToast','Todavía no hay datos para copiar');
+  const packed = 'TRAKVBT:' + await packData(data);
+  if (copyText(packed)) toastIn('dToast', `Datos copiados (${data.sets.length} ${data.sets.length===1?'serie':'series'}). Abrí TrakVBT online y tocá Pegar.`);
+  else { const ta = $('csvFallback'); ta.value = packed; ta.hidden = false; ta.select(); toastIn('dToast','Seleccioná todo el texto y copialo'); }
+}
+async function importPacked(text){
+  const m = String(text||'').match(/(?:TRAKVBT:|importar=)([gj][A-Za-z0-9_-]+)/);
+  if (!m){ showBanner('Lo que pegaste no son datos de TrakVBT. En la app de la placa tocá Copiar datos.', true); return; }
+  try { const d = await unpackData(m[1]); const msg = importData(d); if (msg){ S.detail = null; go('Atletas'); showBanner(`✓ ${msg}`); } }
+  catch(e){ showBanner('No se pudieron leer los datos pegados. Copialos de nuevo desde la placa.', true); }
+}
+async function pasteFromBoard(){
+  try {
+    const t = await navigator.clipboard.readText();
+    if (t) return importPacked(t);
+  } catch(e){}
+  // si el navegador no deja leer el portapapeles: pegar a mano
+  go('Sensor'); $('pasteBox').hidden = false; $('pasteBox').value = ''; $('pasteBox').focus();
+  toastIn('dToast','Mantené apretado el recuadro y elegí Pegar');
+}
+async function receiveFromHash(){
+  const m = location.hash.match(/importar=([A-Za-z0-9_-]+)/);
+  if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+  try {
+    const d = await unpackData(m[1]);
+    const msg = importData(d);
+    if (msg){ S.detail = null; go('Atletas'); showBanner(`✓ ${msg}`); }
+  } catch(e){ showBanner('No se pudieron leer los datos enviados. Probá con Exportar respaldo e Importar.', true); }
+}
+function showBanner(t, bad){
+  let b = document.getElementById('banner');
+  if (!b){ b = document.createElement('div'); b.id = 'banner'; document.querySelector('main').prepend(b); }
+  b.className = 'alert ' + (bad ? 'bad' : 'ok'); b.style.marginTop = '0'; b.style.marginBottom = '14px';
+  b.innerHTML = `<span style="flex:1">${esc(t)}</span><button class="btn2" onclick="this.parentNode.remove()">OK</button>`;
+}
+function csv(){
+  const rows = [['fecha','hora','atleta','puesto','ejercicio','carga_kg','serie','rep','v_media_prop_ms','v_media_ms','v_pico_ms','recorrido_cm','duracion_s',
+    'potencia_media_w','potencia_pico_w','fuerza_media_n','v_excentrica_ms','tut_s','perdida_pct']];
+  const n = (v, d) => has(v) ? v.toFixed(d) : '';
+  S.sets.filter(s=>!s.example).forEach((s,si)=>{
+    const a = athOf(s.athlete) || {name:'Sin atleta', pos:''}, d = new Date(s.time);
+    s.reps.forEach((r,ri)=> rows.push([dayKey(s.time), d.toTimeString().slice(0,5), `"${a.name.replace(/"/g,'')}"`, `"${(a.pos||'').replace(/"/g,'')}"`, exo(s.exercise).name, s.load, si+1, ri+1,
+      n(r.v,3), n(r.vm,3), n(r.vp,3), n(r.rom*100,1), n(r.dur,2), Math.round(power(s.load,r)), has(r.ppk)?Math.round(s.load*r.ppk):'',
+      has(r.fk)?Math.round(s.load*r.fk):'', n(r.ev,3), n(r.tut,2), ((1-r.v/s.best)*100).toFixed(1)]));
+  });
+  return rows.map(r=>r.join(',')).join('\n');
+}
+$('dExport').onclick = exportData;
+$('dSend').onclick = sendOnline;
+$('dCopy').onclick = copyForOnline;
+$('wPaste').onclick = $('dPaste').onclick = pasteFromBoard;
+$('pasteBox').oninput = e => { if (/TRAKVBT:|importar=/.test(e.target.value)){ const v = e.target.value; e.target.value = ''; e.target.hidden = true; importPacked(v); } };
+$('onlineUrl').onchange = e => { S.onlineUrl = e.target.value.trim(); savePrefs(); };
+$('wImport').onclick = () => $('dFile').click();
+$('wDemo').onclick = $('tryDemo').onclick = () => { S.source = 'demo'; seedDemo(); if (!S.athlete || !athOf(S.athlete)) S.athlete = 'd1'; fillAthleteSelects(); showConn(); go('Serie'); };
+$('dImport').onclick = () => $('dFile').click();
+$('dFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader();
+  rd.onload = () => { const msg = importData(rd.result); if (msg && S.online){ S.detail = null; go('Atletas'); showBanner(`✓ ${msg}`); } }; rd.readAsText(f); e.target.value=''; };
+$('dCsv').onclick = () => {
+  const text = csv();
+  const fb = () => { const ta=$('csvFallback'); ta.value=text; ta.hidden=false; ta.select(); toastIn('dToast','Seleccioná y copiá el texto'); };
+  try { navigator.clipboard.writeText(text).then(()=>toastIn('dToast','CSV copiado'), fb); } catch(e){ fb(); }
+};
+$('clearEx').onclick = () => { S.sets = S.sets.filter(s=>!s.example); S.athletes = S.athletes.filter(a=>!a.example); S.demo = false;
+  fillAthleteSelects(); renderAll(); toastIn('dToast','Ejemplos quitados'); };
+$('dWipe').onclick = () => { if (!confirm('¿Borrar TODOS los atletas y series de este teléfono? Exportá un respaldo antes si los querés conservar.')) return;
+  S.sets = []; S.athletes = []; S.athlete = ''; saveAll(); savePrefs(); fillAthleteSelects(); renderAll(); toastIn('dToast','Datos borrados'); };
+
+// ---------- Red WiFi del sensor ----------
+let pickSsid = null;
+function loadWifi(){
+  fetch('/net').then(r=>r.json()).then(w => {
+    $('wifiPanel').hidden = false;
+    const sta = w.mode === 'sta';
+    $('wifiSub').textContent = sta ? 'conectado a una red' : 'red propia';
+    $('netNow').innerHTML = `<span class="pill ${sta?'live':'neutral'}"><i></i>${sta?'WiFi':'Red propia'}</span><b>${esc(w.ssid)}</b><span class="addr">${esc(w.host)} · ${esc(w.ip)}</span>`;
+    $('netHelp').textContent = sta
+      ? `Para usar el sensor, el iPhone tiene que estar en la misma red (${w.ssid}). Abrí http://${w.host}; si no carga, usá http://${w.ip}.`
+      : 'Ahora el sensor usa su propia red. Agregá la red del gimnasio o el hotspot de tu iPhone (2,4 GHz) y la próxima vez se conecta solo.';
+    $('netSaved').innerHTML = w.saved.length ? w.saved.map(s => `<div class="netrow"><span>${esc(s)}${s===w.ssid&&sta?' <small>· en uso</small>':''}</span><button data-forget="${esc(s)}">Olvidar</button></div>`).join('')
+      : '<div class="empty">Ninguna todavía.</div>';
+  }).catch(()=>{});
+}
+function scanWifi(tries=0){
+  $('netScan').disabled = true; $('netToast').textContent = 'Buscando redes…';
+  fetch('/netscan').then(r=>r.json()).then(d => {
+    if (d.running && tries < 20) return setTimeout(()=>scanWifi(tries+1), 1000);
+    $('netScan').disabled = false; $('netToast').textContent = '';
+    const nets = (d.nets||[]).sort((a,b)=>b.rssi-a.rssi);
+    if (d.cached && nets.length) toastIn('netToast','Redes encontradas al encender la placa');
+    $('netFound').innerHTML = nets.length ? nets.map(n => `<div class="netrow"><span>${esc(n.ssid)} <small>· ${n.rssi>-60?'muy buena':n.rssi>-72?'buena':'débil'}${n.open?' · abierta':''}</small></span><button data-pick="${esc(n.ssid)}" data-open="${n.open}">Usar</button></div>`).join('')
+      : '<div class="empty">No encontró redes. La placa solo ve redes de 2,4 GHz (en el hotspot del iPhone activá Maximizar compatibilidad). Podés tocar «Escribir otra red» y cargarla a mano.</div>';
+  }).catch(()=>{ // mientras busca, la red puede cortarse un instante: se reintenta
+    if (tries < 20) return setTimeout(()=>scanWifi(tries+1), 1500);
+    $('netScan').disabled = false; toastIn('netToast','No se pudo buscar. Probá de nuevo.'); });
+}
+function saveWifi(ssid, pass){
+  fetch(`/netsave?ssid=${encodeURIComponent(ssid)}&pass=${encodeURIComponent(pass)}`).then(r=>r.json()).then(d => {
+    if (!d.ok) return toastIn('netToast','Datos inválidos');
+    $('pwBox').hidden = true;
+    $('netHelp').textContent = `Listo. El sensor se reinicia y se conecta a "${ssid}". Pasá el iPhone a esa misma red y abrí http://trakvbt.local (si no carga, usá la dirección que muestra la pantalla de la placa).`;
+    $('netFound').innerHTML = '';
+  }).catch(()=>toastIn('netToast','No se pudo guardar'));
+}
+$('netScan').onclick = () => scanWifi();
+$('netFound').onclick = e => { const b = e.target.closest('button[data-pick]'); if (!b) return;
+  pickSsid = b.dataset.pick; $('ssidIn').hidden = true; $('pwTitle').hidden = false;
+  if (b.dataset.open === 'true'){ if (confirm(`¿Conectar el sensor a "${pickSsid}"?`)) saveWifi(pickSsid, ''); return; }
+  $('pwSsid').textContent = pickSsid; $('pwIn').value = ''; $('pwBox').hidden = false; $('pwIn').focus(); };
+$('netManual').onclick = () => { pickSsid = null; $('ssidIn').hidden = false; $('ssidIn').value = ''; $('pwTitle').hidden = true;
+  $('pwIn').value = ''; $('pwBox').hidden = false; $('ssidIn').focus(); };
+$('pwCancel').onclick = () => { $('pwBox').hidden = true; };
+$('pwSave').onclick = () => {
+  const ssid = $('ssidIn').hidden ? pickSsid : $('ssidIn').value.trim();
+  if (!ssid) return toastIn('netToast','Escribí el nombre de la red');
+  const pw = $('pwIn').value;
+  if (pw && pw.length < 8) return toastIn('netToast','La clave de WiFi tiene al menos 8 caracteres');
+  saveWifi(ssid, pw);
+};
+$('netSaved').onclick = e => { const b = e.target.closest('button[data-forget]'); if (!b) return;
+  if (!confirm(`¿Olvidar "${b.dataset.forget}"?`)) return;
+  fetch(`/netforget?ssid=${encodeURIComponent(b.dataset.forget)}`).then(()=>loadWifi()); };
+
+// =====================================================================
+// Navegación
+// =====================================================================
+function go(tab){
+  S.tab = tab;
+  ['Serie','Atletas','Progreso','Sensor'].forEach(t => $('v'+t).hidden = t !== tab);
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab===tab ? 'page' : 'false'));
+  $('actionBar').hidden = (tab !== 'Serie' && !S.recording) || (S.online && S.source !== 'demo');
+  renderAll(); window.scrollTo(0,0);
+}
+document.querySelector('nav.tabs').onclick = e => { const b = e.target.closest('button[data-tab]'); if (b){ if (b.dataset.tab==='Atletas') S.detail = null; go(b.dataset.tab); } };
+function renderAll(){
+  if (S.tab==='Serie') renderSerie();
+  else if (S.tab==='Atletas') renderAtletas();
+  else if (S.tab==='Progreso') renderProgreso();
+  else renderSensor();
+}
+
+// ---------- Eventos de la pestaña Serie ----------
+$('exercise').innerHTML = EXERCISES.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+$('athlete').onchange = e => {
+  if (e.target.value === '__new'){ e.target.value = S.athlete; athleteForm(null); return; }
+  S.athlete = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie();
+};
+$('exercise').onchange = e => { S.exercise = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie(); };
+const setLoad = v => { S.load = Math.max(0, Math.min(500, Math.round(v*2)/2)); savePrefs(); renderSerie(); };
+$('loadUp').onclick = () => setLoad(S.load + 2.5);
+$('loadDn').onclick = () => setLoad(S.load - 2.5);
+$('load').onchange = e => { const v = parseFloat(e.target.value.replace(',','.')); if (!isNaN(v)) setLoad(v); else renderSerie(); };
+$('cut').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.cut = +b.dataset.v; if (S.liveSet && S.recording){ S.liveSet.cut = S.cut; cmd('cut', `&cut=${S.cut}`); } savePrefs(); renderSerie(); };
+$('go').onclick = () => S.recording ? endSet() : startSet();
+$('gap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.autoGap = +b.dataset.v; cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}`); savePrefs(); renderSerie(); };
+$('snd').onclick = () => { S.sound = !S.sound; $('snd').setAttribute('aria-pressed', String(S.sound)); savePrefs(); };
+$('snd').setAttribute('aria-pressed', String(S.sound));
+
+const ICON = {
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg>',
+  ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>',
+};
+
+// =====================================================================
+// Conexión con el sensor
+// =====================================================================
+function connectSensor(){
+  if (!('EventSource' in window)) return;
+  const es = new EventSource('/events');
+  es.addEventListener('rep', ev => { try { addRep(JSON.parse(ev.data)); } catch(e){} });
+  es.addEventListener('status', ev => { try {
+    const d = JSON.parse(ev.data), wasCal = S.sensorState===0;
+    S.battery = d.bat; S.sensorState = d.state; S.cal = d.cal || 0; S.hz = d.hz; S.fw = d.fw; S.volt = d.v; showConn(true);
+    if (typeof d.cs === 'number') S.calSec = d.cs;
+    if (S.tab==='Serie') renderCal();
+    if (S.tab==='Sensor') renderSensor();
+  } catch(e){} });
+  es.addEventListener('start', () => startSet(true));
+  es.addEventListener('stop', () => endSet(true));
+  es.onopen = () => { showConn(true); cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}`); };
+  es.onerror = () => { showConn(false); if (S.tab==='Serie') renderCal(); };
+}
+function showConn(on){
+  const c = $('conn');
+  if (S.source === 'online'){ c.className='pill neutral'; c.innerHTML='<i></i>Online'; return; }
+  if (S.source === 'demo'){ c.className='pill demo'; c.innerHTML='<i></i>Demo'; return; }
+  S.connected = on !== false;
+  c.className = on===false ? 'pill off' : 'pill live';
+  c.innerHTML = on===false ? '<i></i>Sin sensor' : '<i></i>Sensor';
+  const b = $('bat');
+  if (S.battery != null){
+    b.hidden = false;
+    if (S.battery < 0){ b.className='pill neutral'; b.textContent='USB'; }
+    else { b.className='pill '+(S.battery<20?'off':'neutral'); b.textContent=`${S.battery}%`; }
+  }
+}
+
+// =====================================================================
+// Arranque
+// =====================================================================
+const onBoard = /[?&]sensor\b/.test(location.search) || location.hostname.endsWith('.local')
+  || /^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname);
+// migración: jugadores guardados por la versión anterior
+S.athletes = store.get('trakvbt.athletes', []).map(a => ({...a}));
+S.sets = store.get('trakvbt.sets', []).filter(s=>s && Array.isArray(s.reps) && s.reps.length).map(s => finishSet({id: s.id || uid('s'), ...s}));
+// serie que quedó a medias (app cerrada o sin conexión): se recupera y se guarda
+const pend = store.get('trakvbt.live', null);
+if (pend && Array.isArray(pend.reps) && pend.reps.length && !S.sets.some(s=>s.id===pend.id)){
+  S.sets.push(finishSet({...pend, id: pend.id || uid('s')})); saveAll();
+  autoNote = `Se recuperó una serie de ${pend.reps.length} reps que había quedado sin guardar.`;
+}
+try { localStorage.removeItem('trakvbt.live'); } catch(e){}
+// versión online: publicada con https (GitHub Pages) o con ?online
+S.online = !onBoard && (location.protocol === 'https:' || /[?&]online\b/.test(location.search));
+if (onBoard){ S.source='sensor'; showConn(false); connectSensor(); loadWifi(); }
+else if (S.online){ S.source='online'; showConn();
+  const tb = document.querySelector('nav.tabs button[data-tab=Sensor]'); tb.lastChild.textContent = 'Datos'; }
+else { seedDemo(); if (!S.athlete) S.athlete = 'd1'; }
+fillAthleteSelects();
+go(S.online ? 'Atletas' : 'Serie');
+if (S.online){ receiveFromHash(); window.addEventListener('hashchange', receiveFromHash); }
+})();
+</script>
+</body>
+</html>

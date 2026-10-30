@@ -1,0 +1,5 @@
+TrakVBT online - archivos para GitHub Pages
+
+Subí TODOS los archivos de esta carpeta a la raíz de un repositorio (por ejemplo "trakvbt")
+y activá GitHub Pages en Settings > Pages > Deploy from a branch > main / (root).
+Quedará en https://TU-USUARIO.github.io/trakvbt/
