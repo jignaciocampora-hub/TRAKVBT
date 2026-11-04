@@ -136,6 +136,11 @@ button.zone{border:0;font-family:inherit;cursor:pointer}
 .sciref b{color:var(--ink)}
 .refs{margin:6px 0 0;padding-left:18px;font-size:11.5px;line-height:1.4}
 .refs li{margin-bottom:3px}
+.bwrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sunk);border-radius:10px;padding:8px 12px;font-size:14px}
+.bwrow b{font-family:var(--f-num);font-size:18px}
+.bwrow .sub{color:var(--muted);font-size:12.5px}
+.bwrow.need{background:var(--warn-soft);color:var(--warn);font-weight:600}
+.bwrow button{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;color:var(--accent);font-family:inherit}
 .testhint{font-size:13px;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:8px 12px;margin-top:6px;line-height:1.4}
 .tag.test{background:var(--accent-soft);color:var(--accent)}
 @media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -284,6 +289,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
 .page .kpi{background:#F3F5F8;border-radius:10px;padding:8px 10px}
 .page .kpi .v{font-family:var(--f-num);font-size:24px;font-weight:600}
 .page .kpi .v small{font-size:13px;color:#5A6576}
+.page .kpi .d{font-size:11.5px;color:#5A6576}
 .page .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .page .chart text{fill:#5A6576}
 .page .chart .vlab{fill:#111823}
@@ -355,6 +361,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
           <div class="setup">
             <label class="field"><span class="label">Atleta</span><select class="sel" id="athlete"></select></label>
             <label class="field"><span class="label">Ejercicio</span><select class="sel" id="exercise"></select></label>
+            <div class="bwrow" id="bwRow" style="grid-column:1/-1" hidden></div>
             <div class="field"><span class="label" id="loadLbl">Carga (kg)</span>
               <div class="stepper" role="group" aria-labelledby="loadLbl">
                 <button id="loadDn" aria-label="Bajar 2,5 kg">−</button>
@@ -391,7 +398,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
           </div>
           <div class="tiles">
             <div class="tile"><div class="label">Pico</div><div class="v" id="tPeak">—</div></div>
-            <div class="tile"><div class="label">Potencia</div><div class="v" id="tPow">—</div></div>
+            <div class="tile"><div class="label">Potencia</div><div class="v" id="tPow">—</div><div class="d" id="tPowRel"></div></div>
             <div class="tile"><div class="label">Recorrido</div><div class="v" id="tRom">—</div></div>
             <div class="tile" id="tVLbox"><div class="label">Pérdida</div><div class="v" id="tVL">—</div></div>
           </div>
@@ -579,7 +586,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
 // =====================================================================
 const EXERCISES = [ // MVT = velocidad mínima al 1RM (m/s), referencias habituales de VBT
   // ecc: true = empieza bajando (la placa no cuenta una subida sin bajada previa, p. ej. sacar del rack)
-  {id:'sq', name:'Sentadilla', mvt:0.30, ecc:true},
+  {id:'sq', name:'Sentadilla', mvt:0.30, ecc:true, bwIn:true},   // bwIn: fuerza y potencia con carga + peso corporal
   {id:'bp', name:'Press de banca', mvt:0.17, ecc:true},
   {id:'dl', name:'Peso muerto', mvt:0.15, ecc:false},
   {id:'ht', name:'Hip thrust', mvt:0.25, ecc:false},
@@ -629,6 +636,23 @@ const saveAll = () => {
 };
 const athName = id => (S.athletes.find(a=>a.id===id)||{}).name || 'Sin atleta';
 const athOf = id => S.athletes.find(a=>a.id===id);
+// Peso corporal: historial por fecha (a.bwLog = [{t, kg}]); a.bw = el último cargado
+function bwLogOf(a){
+  if (!a) return [];
+  const L = Array.isArray(a.bwLog) ? a.bwLog.slice() : [];
+  if (!L.length && a.bw) L.push({t:a.created||0, kg:a.bw});
+  return L.sort((x,y)=>x.t-y.t);
+}
+function bwAt(id, t=Date.now()){ const L = bwLogOf(athOf(id)); if (!L.length) return null; let v = L[0].kg; L.forEach(e=>{ if (e.t <= t) v = e.kg; }); return v; }
+function bwLast(id){ const L = bwLogOf(athOf(id)); return L.length ? L[L.length-1] : null; }
+function setBw(a, kgv, t=Date.now()){
+  a.bwLog = bwLogOf(a).filter(e=>dayKey(e.t)!==dayKey(t)); a.bwLog.push({t, kg:kgv}); a.bwLog.sort((x,y)=>x.t-y.t);
+  a.bw = a.bwLog[a.bwLog.length-1].kg;
+}
+const bwOfSet = s => has(s.bw) ? s.bw : (s.athlete ? bwAt(s.athlete, s.time) : null);
+// masa que se mueve: en sentadilla se suma el peso corporal (el cuerpo sube y baja con la barra)
+const sysMass = s => s.load + (exo(s.exercise).bwIn && bwOfSet(s) ? bwOfSet(s) : 0);
+const relTxt = (x, bw, d=2) => bw && x ? fmt(x/bw, d) : null;
 
 // =====================================================================
 // Cálculos
@@ -678,7 +702,7 @@ function sessionsOf(ath, ex, sinceMs=0){
     o.fit = fitLV(o.sets.map(s=>({x:s.load, y:s.best})), e.mvt);
     o.best = Math.max(...o.sets.map(s=>s.best));
     o.maxLoad = Math.max(...o.sets.map(s=>s.load));
-    o.pmax = Math.max(...o.sets.flatMap(s=>s.reps.map(r=>power(s.load,r))));
+    o.pmax = Math.max(...o.sets.flatMap(s=>s.reps.map(r=>power(sysMass(s),r))));
     o.reps = o.sets.reduce((a,s)=>a+s.reps.length,0);
     o.bestAt = load => { const v = o.sets.filter(s=>s.load===load).map(s=>s.best); return v.length ? Math.max(...v) : null; };
     return o;
@@ -903,6 +927,7 @@ function startSet(fromSensor){
   if (S.recording) return;
   S.recording = true; S.reps = []; S.t0 = Date.now();
   S.liveSet = {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut};
+  if (S.athlete && bwAt(S.athlete)) S.liveSet.bw = bwAt(S.athlete);
   if (S.setKind) S.liveSet.test = S.setKind;
   S.liveId = uid('s');
   try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); } catch(e){}
@@ -981,6 +1006,7 @@ function renderSerie(newRep){
   [...$('gap').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.autoGap)));
   [...$('kind').children].forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.v === S.setKind)); b.disabled = S.recording; });
   renderTestHint();
+  renderBwRow();
   ['athlete','exercise','load','loadUp','loadDn'].forEach(id => $(id).disabled = S.recording);
 
   let shown = null;
@@ -1006,11 +1032,13 @@ function renderSerie(newRep){
     $('zone').querySelector('span').textContent = z.name;
     [...$('zbar').children].forEach((s,i)=>s.classList.toggle('on', i<=zi));
     $('tPeak').innerHTML = `${fmt(last.vp)}<small>m/s</small>`;
-    $('tPow').innerHTML = `${Math.round(power(load,last))}<small>W</small>`;
+    const mass = sysMass({...shown, load}), bwS = bwOfSet({...shown, athlete:shown.athlete||S.athlete});
+    $('tPow').innerHTML = `${Math.round(power(mass,last))}<small>W</small>`;
+    $('tPowRel').textContent = bwS ? `${fmt(power(mass,last)/bwS,1)} W/kg${exo(shown.exercise).bwIn?' · incl. peso corp.':''}` : '';
     $('tRom').innerHTML = `${Math.round(last.rom*100)}<small>cm</small>`;
     $('tVL').innerHTML = `${Math.round(vl)}<small>%</small>`;
     $('tVLbox').className = 'tile' + (vl>cut ? ' bad' : vl>cut*0.75 ? ' warnv' : '');
-    const f = force(load,last), pp = peakPower(load,last);
+    const f = force(mass,last), pp = peakPower(mass,last);
     $('tF').innerHTML = f!=null ? `${Math.round(f)}<small>N</small>` : '—';
     $('tPP').innerHTML = pp!=null ? `${Math.round(pp)}<small>W</small>` : '—';
     $('tTut').innerHTML = has(last.tut) ? `${fmt(last.tut,1)}<small>s</small>` : '—';
@@ -1023,7 +1051,7 @@ function renderSerie(newRep){
     $('vel').innerHTML = `—<small>m/s</small>`;
     $('zone').style.setProperty('--zc','var(--muted)'); $('zone').querySelector('span').textContent = 'Esperando la primera repetición';
     [...$('zbar').children].forEach(s=>s.classList.remove('on'));
-    ['tPeak','tPow','tRom','tVL','tF','tPP','tTut','tEcc'].forEach(id=>$(id).textContent='—'); $('tVLbox').className='tile';
+    ['tPeak','tPow','tRom','tVL','tF','tPP','tTut','tEcc'].forEach(id=>$(id).textContent='—'); $('tPowRel').textContent=''; $('tVLbox').className='tile';
     $('curveWrap').hidden = true;
     renderSci(null, [], 0, 0);
   }
@@ -1103,6 +1131,35 @@ function renderSci(shown, reps, best, vl){
   if (reps.length >= 2){ const F = fatigueLevel(shown.exercise, vl);
     sciCard('sFat', F.cls, F.name, `pérdida ${Math.round(vl)} %${F.lv===3?' · sube el amonio':F.lv===1?' · rango de fuerza y potencia':''}`); }
   else sciCard('sFat', '', '—', 'desde la 2.ª rep');
+}
+function renderBwRow(){
+  const r = $('bwRow'), a = athOf(S.athlete);
+  if (!a){ r.hidden = true; return; }
+  r.hidden = false;
+  const L = bwLast(a.id);
+  if (!L){ r.className = 'bwrow need'; r.innerHTML = `Falta el peso corporal de ${esc(a.name)}<button type="button" id="bwBtn">Cargar</button>`; }
+  else {
+    const old = !L.t || Date.now() - L.t > 30*DAY;
+    r.className = 'bwrow' + (old ? ' need' : '');
+    r.innerHTML = `<span class="label" style="margin:0">Peso corporal</span><b>${kg(L.kg)} kg</b><span class="sub">${!L.t ? 'sin fecha · conviene actualizarlo' : dayKey(L.t)===dayKey(Date.now()) ? 'actualizado hoy' : `del ${dShort(L.t)}${old?' · conviene actualizarlo':''}`}</span><button type="button" id="bwBtn">Actualizar</button>`;
+  }
+  $('bwBtn').disabled = S.recording;
+  $('bwBtn').onclick = () => bwSheet(a);
+}
+function bwSheet(a){
+  const L = bwLogOf(a);
+  openSheet(`<h3>Peso corporal · ${esc(a.name)}</h3>
+    <label class="field"><span class="label">Peso de hoy (kg)</span><input class="txt" id="bwIn" inputmode="decimal" value="${a.bw?kg(a.bw):''}" autocomplete="off"></label>
+    <p class="note" style="margin:0">Se usa para la potencia y la fuerza en sentadilla (carga + peso corporal) y para los valores relativos: 1RM por kg de peso y W/kg. Queda guardado con la fecha, así cada evaluación usa el peso de ese día.</p>
+    ${L.length ? `<table class="mini"><tr><th>Fecha</th><th>Peso</th></tr>${L.slice().reverse().slice(0,8).map(e=>`<tr><td>${e.t?dShort(e.t):'—'}</td><td>${kg(e.kg)} kg</td></tr>`).join('')}</table>` : ''}
+    <div class="row"><button class="btn1" id="bwSave">Guardar</button><button class="btn2" id="bwCancel">Cancelar</button></div>`);
+  setTimeout(()=>$('bwIn').select(), 50);
+  $('bwCancel').onclick = closeSheet;
+  $('bwSave').onclick = () => {
+    const v = parseFloat($('bwIn').value.replace(',','.'));
+    if (isNaN(v) || v < 25 || v > 250){ $('bwIn').focus(); return; }
+    setBw(a, v); saveAll(); closeSheet(); renderAll();
+  };
 }
 function renderTestHint(){
   const h = $('testHint');
@@ -1215,7 +1272,8 @@ function drawLiveProfile(){
   const extra = (S.liveSet && S.reps.length && S.recording) ? [{x:S.liveSet.load, y:Math.max(...S.reps.map(r=>r.v)), live:true}] : [];
   const P = S.athlete ? profileOf(S.athlete, S.exercise, extra) : fitLV(extra, ex.mvt);
   $('profChart').innerHTML = lvSVG(P.pts, [{fit:P, color:'var(--accent)'}], ex.mvt);
-  $('orm').innerHTML = P.ok ? `${Math.round(P.rm)}<small> kg</small>` : '—';
+  const bwN = S.athlete ? bwAt(S.athlete) : null;
+  $('orm').innerHTML = P.ok ? `${Math.round(P.rm)}<small> kg${bwN?` · ${fmt(P.rm/bwN,2)} × peso corporal`:''}</small>` : '—';
   $('profSub').textContent = `${athName(S.athlete)} · ${ex.name}`;
   $('profNote').textContent = P.ok
     ? `Últimas 3 semanas (R² ${fmt(P.r2)}). El 1RM es donde la recta cruza la velocidad mínima al 1RM (VMR) de ${ex.name.toLowerCase()}.`
@@ -1251,7 +1309,7 @@ function editSet(id){
     <label class="field"><span class="label">Carga (kg)</span><input class="txt" id="esLoad" inputmode="decimal" value="${kg(s.load)}"></label>
     <label class="field"><span class="label">Tipo de serie</span><select class="sel" id="esKind"><option value="">Entrenamiento</option><option value="pre" ${s.test==='pre'?'selected':''}>Test 1 m/s · antes</option><option value="post" ${s.test==='post'?'selected':''}>Test 1 m/s · después</option></select></label>
     <table class="mini"><tr><th>Rep</th><th>VMP</th><th>Pico</th><th>Rec.</th><th>Pot.</th></tr>
-      ${s.reps.map((r,i)=>`<tr><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(s.load,r))} W</td></tr>`).join('')}</table>
+      ${s.reps.map((r,i)=>`<tr><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(sysMass(s),r))} W</td></tr>`).join('')}</table>
     <div class="row"><button class="btn1" id="esSave">Guardar</button><button class="btn2" id="esCancel">Cancelar</button><button class="btn2 danger" id="esDel" style="margin-left:auto">Borrar serie</button></div>`);
   $('esCancel').onclick = closeSheet;
   $('esSave').onclick = () => {
@@ -1273,8 +1331,9 @@ function athleteForm(a){
     <label class="field"><span class="label">Nombre</span><input class="txt" id="afName" value="${esc(a.name)}" autocomplete="off"></label>
     <div class="setup">
       <label class="field"><span class="label">Puesto / grupo</span><input class="txt" id="afPos" value="${esc(a.pos||'')}" autocomplete="off"></label>
-      <label class="field"><span class="label">Peso corporal (kg)</span><input class="txt" id="afBw" inputmode="decimal" value="${a.bw?kg(a.bw):''}"></label>
+      <label class="field"><span class="label">Peso corporal (kg)</span><input class="txt" id="afBw" inputmode="decimal" value="${a.bw?kg(a.bw):''}" placeholder="Ej.: 92,5"></label>
     </div>
+    <p class="note" style="margin:0">El peso corporal se usa para la potencia en sentadilla y los valores relativos (1RM y W por kg). Se puede actualizar cuando quieras: queda el historial con la fecha.</p>
     <div class="row"><button class="btn1" id="afSave">${isNew?'Crear':'Guardar'}</button><button class="btn2" id="afCancel">Cancelar</button>
       ${isNew?'':'<button class="btn2 danger" id="afDel" style="margin-left:auto">Borrar atleta</button>'}</div>`);
   setTimeout(()=>$('afName').focus(), 50);
@@ -1282,8 +1341,10 @@ function athleteForm(a){
   $('afSave').onclick = () => {
     const name = $('afName').value.trim(); if (!name) return $('afName').focus();
     const bw = parseFloat($('afBw').value.replace(',','.'));
-    if (isNew){ const n = {id:uid('a'), name, pos:$('afPos').value.trim(), bw:isNaN(bw)?null:bw, created:Date.now()}; S.athletes.push(n); S.athlete = n.id; }
-    else { a.name = name; a.pos = $('afPos').value.trim(); a.bw = isNaN(bw)?null:bw; }
+    const okBw = !isNaN(bw) && bw >= 25 && bw <= 250;
+    if (!isNaN(bw) && !okBw) return $('afBw').focus();
+    if (isNew){ const n = {id:uid('a'), name, pos:$('afPos').value.trim(), bw:null, created:Date.now()}; if (okBw) setBw(n, bw); S.athletes.push(n); S.athlete = n.id; }
+    else { a.name = name; a.pos = $('afPos').value.trim(); if (okBw && bw !== a.bw) setBw(a, bw); }
     saveAll(); savePrefs(); closeSheet(); fillAthleteSelects(); renderAll();
   };
   if (!isNew) $('afDel').onclick = () => {
@@ -1310,11 +1371,14 @@ function renderAtletas(){
   }
   const a = athOf(S.detail); if (!a){ S.detail = null; return renderAtletas(); }
   $('adName').textContent = a.name;
-  $('adMeta').textContent = [a.pos, a.bw?`${kg(a.bw)} kg`:''].filter(Boolean).join(' · ') || 'Sin datos extra';
+  const bL = bwLast(a.id);
+  $('adMeta').innerHTML = [esc(a.pos||''), bL?`${kg(bL.kg)} kg corporales${bL.t?` (${dShort(bL.t)})`:''}`:'<span style="color:var(--warn)">sin peso corporal</span>'].filter(Boolean).join(' · ')
+    + ` · <a href="#" id="adBw" style="color:var(--accent);font-weight:600">${bL?'actualizar peso':'cargar peso'}</a>`;
+  $('adBw').onclick = e => { e.preventDefault(); bwSheet(a); };
   const exIds = [...new Set(S.sets.filter(s=>s.athlete===a.id).map(s=>s.exercise))];
-  $('adSummary').innerHTML = exIds.length ? `<table class="mini"><tr><th>Ejercicio</th><th>1RM est.</th><th>Mejor VMP</th><th>Carga máx.</th><th>Sesiones</th></tr>${exIds.map(ex=>{
-      const rm = currentRM(a.id, ex), ses = sessionsOf(a.id, ex);
-      return `<tr><td>${exo(ex).name}</td><td>${rm?Math.round(rm)+' kg':'—'}</td><td>${fmt(Math.max(...ses.map(o=>o.best)))} m/s</td><td>${kg(Math.max(...ses.map(o=>o.maxLoad)))} kg</td><td>${ses.length}</td></tr>`;
+  $('adSummary').innerHTML = exIds.length ? `<table class="mini"><tr><th>Ejercicio</th><th>1RM est.</th><th>1RM / peso</th><th>Mejor VMP</th><th>Carga máx.</th><th>Sesiones</th></tr>${exIds.map(ex=>{
+      const rm = currentRM(a.id, ex), ses = sessionsOf(a.id, ex), bwN = bwAt(a.id);
+      return `<tr><td>${exo(ex).name}</td><td>${rm?Math.round(rm)+' kg':'—'}</td><td>${rm&&bwN?fmt(rm/bwN,2):'—'}</td><td>${fmt(Math.max(...ses.map(o=>o.best)))} m/s</td><td>${kg(Math.max(...ses.map(o=>o.maxLoad)))} kg</td><td>${ses.length}</td></tr>`;
     }).join('')}</table>` : '<div class="empty">Sin series todavía. Tocá «Entrenar ahora».</div>';
   // sesiones por día (todas las series del día, de todos los ejercicios)
   const byDay = new Map();
@@ -1406,8 +1470,8 @@ function renderProgreso(){
   const v0 = D.firstFit ? D.firstFit.fit.b : null, v1 = D.lastFit ? D.lastFit.fit.b : null;
   body.innerHTML = `
     <section class="panel"><div class="tiles">
-      <div class="tile"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):'—'}<small>kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y, rm1.y, ' kg'):''}</div>
-      <div class="tile"><div class="label">Pot. media máx.</div><div class="v">${Math.round(p1.y)}<small>W</small></div>${D.powPts.length>1?delta(p0.y, p1.y, ' W'):''}</div>
+      <div class="tile"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):'—'}<small>kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y, rm1.y, ' kg'):''}${rm1&&bwAt(S.pgAth, rm1.t)?`<div class="d">${fmt(rm1.y/bwAt(S.pgAth, rm1.t),2)} × peso corporal</div>`:''}</div>
+      <div class="tile"><div class="label">Pot. media máx.</div><div class="v">${Math.round(p1.y)}<small>W</small></div>${D.powPts.length>1?delta(p0.y, p1.y, ' W'):''}${bwAt(S.pgAth, p1.t)?`<div class="d">${fmt(p1.y/bwAt(S.pgAth, p1.t),1)} W/kg</div>`:''}</div>
       <div class="tile"><div class="label">V0 del perfil</div><div class="v">${fmt(v1)}<small>m/s</small></div>${D.firstFit&&D.lastFit&&D.firstFit!==D.lastFit?delta(v0, v1, '', 2, false):''}</div>
       <div class="tile"><div class="label">Sesiones</div><div class="v">${D.ses.length}</div><div class="d">desde ${dShort(D.ses[0].time)}</div></div>
     </div></section>
@@ -1456,7 +1520,7 @@ function buildReport(){
   const days = new Set(sets.map(s=>dayKey(s.time)));
   const t0 = sets.length ? Math.min(...sets.map(s=>s.time)) : null, t1 = sets.length ? Math.max(...sets.map(s=>s.time)) : null;
   let h = `<div class="rh"><div><div class="brand">TRAK<b>VBT</b></div><h1>${esc(a.name)}</h1>
-      <div style="color:#5A6576;font-size:14px">${[a.pos, a.bw?`${kg(a.bw)} kg corporales`:''].filter(Boolean).map(esc).join(' · ')}</div></div>
+      <div style="color:#5A6576;font-size:14px">${[a.pos, bwLast(a.id)?`${kg(bwLast(a.id).kg)} kg corporales`:''].filter(Boolean).map(esc).join(' · ')}</div></div>
     <div class="rmeta"><b>Informe de entrenamiento por velocidad</b><br>${t0?`${dShort(t0)} – ${dShort(t1)}`:'Sin datos'}<br>${days.size} sesiones · ${sets.length} series<br>Generado ${dLong(Date.now())}</div></div>`;
   if (!exIds.length) h += '<p>No hay series en el período elegido.</p>';
   exIds.forEach(ex => {
@@ -1466,9 +1530,9 @@ function buildReport(){
     const lastS = D.ses[D.ses.length-1];
     h += `<div class="exblock"><h2>${e.name}</h2>
       <div class="kpis">
-        <div class="kpi"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):(P.ok?Math.round(P.rm):'—')}<small> kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y,rm1.y,' kg'):''}</div>
+        <div class="kpi"><div class="label">1RM estimado</div><div class="v">${rm1?Math.round(rm1.y):(P.ok?Math.round(P.rm):'—')}<small> kg</small></div>${rm0&&rm1&&D.rmPts.length>1?delta(rm0.y,rm1.y,' kg'):''}${(()=>{ const r = rm1?rm1.y:(P.ok?P.rm:null), b = bwAt(a.id, rm1?rm1.t:Date.now()); return r&&b?`<div class="d">${fmt(r/b,2)} × peso corporal</div>`:''; })()}</div>
         <div class="kpi"><div class="label">Mejor VMP</div><div class="v">${fmt(Math.max(...D.ses.map(o=>o.best)))}<small> m/s</small></div></div>
-        <div class="kpi"><div class="label">Pot. media máx.</div><div class="v">${Math.round(Math.max(...D.powPts.map(p=>p.y)))}<small> W</small></div>${D.powPts.length>1?delta(D.powPts[0].y,D.powPts[D.powPts.length-1].y,' W'):''}</div>
+        <div class="kpi"><div class="label">Pot. media máx.</div><div class="v">${Math.round(Math.max(...D.powPts.map(p=>p.y)))}<small> W</small></div>${D.powPts.length>1?delta(D.powPts[0].y,D.powPts[D.powPts.length-1].y,' W'):''}${(()=>{ const pm = D.powPts.reduce((m,p)=>p.y>m.y?p:m, D.powPts[0]), b = pm && bwAt(a.id, pm.t); return b?`<div class="d">${fmt(pm.y/b,1)} W/kg</div>`:''; })()}</div>
         <div class="kpi"><div class="label">Sesiones</div><div class="v">${D.ses.length}</div></div>
       </div>
       <div class="two">
@@ -1488,7 +1552,7 @@ function buildReport(){
         ${D.ses.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${kg(o.maxLoad)} kg</td><td>${fmt(o.best)}</td><td>${o.fit.ok?Math.round(o.fit.rm)+' kg':'—'}</td><td>${Math.round(o.pmax)} W</td></tr>`).join('')}</table>
       ${lastS?`<h3>Última sesión · ${dLong(lastS.time)}</h3>
       <table class="mini"><tr><th>Carga</th><th>Reps</th><th>Mejor VMP</th><th>% 1RM</th><th>Pérdida</th><th>CE</th><th>Fatiga</th><th>Pot. media</th></tr>
-        ${lastS.sets.map(s=>{ const pw = Math.max(...s.reps.map(r=>power(s.load,r)));
+        ${lastS.sets.map(s=>{ const pw = Math.max(...s.reps.map(r=>power(sysMass(s),r)));
           const I = intensity(s.athlete, s.exercise, s.load, s.best), E = effort(s), F = s.reps.length>1 ? fatigueLevel(s.exercise, s.vl) : null;
           return `<tr><td>${kg(s.load)} kg${s.test?` <small>(test ${s.test==='pre'?'antes':'después'})</small>`:''}</td><td>${s.reps.length}</td><td>${fmt(s.best)}</td><td>${I?pctTxt(I)+' %':'—'}</td><td class="${s.vl>(s.cut||20)?'bad':''}">${Math.round(s.vl)}%</td><td>${ceTxt(E)}</td><td class="${F&&F.lv===3?'bad':''}">${F?F.name:'—'}</td><td>${Math.round(pw)} W</td></tr>`; }).join('')}</table>`:''}
       ${(() => { const T = testsOf(a.id, ex, since); return T.length ? `<h3>Control de fatiga · carga de 1 m/s</h3>${testsTable(T.slice(-10))}` : ''; })()}
@@ -1496,7 +1560,7 @@ function buildReport(){
   });
   h += `<div class="foot"><b>Cómo se calcula.</b> % 1RM: con la VMP de la rep más rápida, por el perfil carga-velocidad del atleta o, si no hay, por ecuaciones generales (sentadilla completa y press de banca). CE (carácter del esfuerzo) = reps hechas (posibles), estimado desde la pérdida de velocidad. Fatiga de la serie: baja &lt; 10 %, moderada 10–20 %, alta hasta ~30 % (sentadilla) / ~35 % (banca), muy alta por encima. Test de 1 m/s: media de las 2 mejores reps con la misma carga; antes vs. su base y después vs. antes (umbrales orientativos).
     ${refsHTML(['gb2010','sm2017','gb2017','rr2020','sm2011','pb2017','mann'])}</div>`;
-  h += `<div class="foot" style="margin-top:8px;border-top:0;padding-top:0">VMP: velocidad media propulsiva. Zonas de velocidad según la VMP de cada rep (Mann); su % 1RM es orientativo. 1RM estimado con la recta carga-velocidad (mejor rep de cada serie) y la velocidad mínima al 1RM de cada ejercicio. Potencia media propulsiva medida por el sensor TrakVBT.</div>`;
+  h += `<div class="foot" style="margin-top:8px;border-top:0;padding-top:0">VMP: velocidad media propulsiva. Zonas de velocidad según la VMP de cada rep (Mann); su % 1RM es orientativo. 1RM estimado con la recta carga-velocidad (mejor rep de cada serie) y la velocidad mínima al 1RM de cada ejercicio. Potencia media propulsiva medida por el sensor TrakVBT; en sentadilla, fuerza y potencia usan la carga más el peso corporal del día. Valores relativos (× peso corporal, W/kg) con el peso cargado en la fecha de cada sesión.</div>`;
   $('rPage').innerHTML = h;
 }
 $('rClose').onclick = () => { $('report').hidden = true; };
@@ -1673,7 +1737,7 @@ function csv(){
   S.sets.filter(s=>!s.example).forEach((s,si)=>{
     const a = athOf(s.athlete) || {name:'Sin atleta', pos:''}, d = new Date(s.time);
     s.reps.forEach((r,ri)=> rows.push([dayKey(s.time), d.toTimeString().slice(0,5), `"${a.name.replace(/"/g,'')}"`, `"${(a.pos||'').replace(/"/g,'')}"`, exo(s.exercise).name, s.load, si+1, ri+1,
-      n(r.v,3), n(r.vm,3), n(r.vp,3), n(r.rom*100,1), n(r.dur,2), Math.round(power(s.load,r)), has(r.ppk)?Math.round(s.load*r.ppk):'',
+      n(r.v,3), n(r.vm,3), n(r.vp,3), n(r.rom*100,1), n(r.dur,2), Math.round(power(sysMass(s),r)), has(r.ppk)?Math.round(sysMass(s)*r.ppk):'',
       has(r.fk)?Math.round(s.load*r.fk):'', n(r.ev,3), n(r.tut,2), ((1-r.v/s.best)*100).toFixed(1)]));
   });
   return rows.map(r=>r.join(',')).join('\n');
