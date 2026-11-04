@@ -109,10 +109,35 @@ main{max-width:1180px;margin:0 auto;padding-block:14px 170px;
 .zone{margin-top:8px;display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-weight:600;font-size:13.5px;
   color:var(--zc);background:color-mix(in srgb,var(--zc) 14%,transparent)}
 .zone i{width:8px;height:8px;border-radius:2px;background:var(--zc)}
+button.zone{border:0;font-family:inherit;cursor:pointer}
+.zone .zinfo{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;font-size:10.5px;font-style:italic;opacity:.7}
+.zref{width:min(520px,100%);margin-top:12px;text-align:left}
+.zref .note{font-size:12px;color:var(--muted);margin-top:6px}
+.ztab .zsw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:0}
+.ztab td:nth-child(2),.ztab td:nth-child(3){white-space:nowrap}
+.ztab th.zgoal,.ztab td.zgoal{text-align:left;padding-left:14px}
+.ztab td.zgoal{color:var(--muted);font-size:12.5px}
+.ztab td:last-child{white-space:nowrap}
+@media screen and (max-width:560px){ .ztab .zgoal{display:none} }
 .zbar{display:flex;gap:3px;margin-top:10px;width:min(320px,100%)}
 .zbar span{flex:1;height:5px;border-radius:2px;background:var(--line)}
 .zbar span.on{background:var(--zc)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.sci{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.scard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0;border-left:4px solid var(--line)}
+.scard .v{font-family:var(--f-num);font-size:24px;font-weight:600;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums}
+.scard .v small{font-size:13px;color:var(--muted);font-weight:500;margin-left:3px}
+.scard .d{font-size:12px;color:var(--muted);line-height:1.3;margin-top:2px}
+.scard.ok{border-left-color:var(--ok)} .scard.warn{border-left-color:var(--warn)} .scard.bad{border-left-color:var(--bad)} .scard.info{border-left-color:var(--accent)}
+.scard.ok .v{color:var(--ok)} .scard.warn .v{color:var(--warn)} .scard.bad .v{color:var(--bad)}
+@media (max-width:460px){.sci{grid-template-columns:1fr}.scard{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px}.scard .v{grid-row:1/3;grid-column:2;text-align:right}}
+.linkbtn{border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:8px 0 0;font-family:inherit;cursor:pointer}
+.sciref{font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:6px}
+.sciref b{color:var(--ink)}
+.refs{margin:6px 0 0;padding-left:18px;font-size:11.5px;line-height:1.4}
+.refs li{margin-bottom:3px}
+.testhint{font-size:13px;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:8px 12px;margin-top:6px;line-height:1.4}
+.tag.test{background:var(--accent-soft);color:var(--accent)}
 @media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tiles + .tiles{margin-top:8px}
 .tile{background:var(--sunk);border-radius:12px;padding:10px 12px;min-width:0}
@@ -262,7 +287,9 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
 .page .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .page .chart text{fill:#5A6576}
 .page .chart .vlab{fill:#111823}
-.page .foot{margin-top:24px;font-size:11.5px;color:#5A6576;border-top:1px solid #D3DAE3;padding-top:8px}
+.page .foot{margin-top:24px;font-size:11.5px;color:#5A6576;border-top:1px solid #D3DAE3;padding-top:8px;line-height:1.45}
+.page .foot b{color:#1B2430}
+.page .refs{font-size:10.5px}
 .page .two > div,.page table.mini,.page .kpis{break-inside:avoid}
 .page h2,.page h3{break-after:avoid}
 @media (max-width:600px){.page{padding:20px 16px;margin:0}.page .kpis{grid-template-columns:repeat(2,1fr)}.page .two{grid-template-columns:1fr}}
@@ -290,6 +317,9 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
     <div class="hright">
       <span id="bat" class="pill neutral" hidden></span>
       <span id="conn" class="pill demo"><i></i>Demo</span>
+      <button id="pwr" class="iconbtn" hidden aria-label="Apagar sensor" title="Apagar sensor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>
+      </button>
       <button id="snd" class="iconbtn" aria-pressed="true" aria-label="Sonido de alerta" title="Sonido de alerta">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
       </button>
@@ -339,6 +369,11 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
               <div class="seg" id="gap" role="group" aria-labelledby="gapLbl">
                 <button data-v="20">20 s</button><button data-v="30">30 s</button><button data-v="60">60 s</button><button data-v="0">Manual</button>
               </div></div>
+            <div class="field" style="grid-column:1/-1"><span class="label" id="kindLbl">Tipo de serie</span>
+              <div class="seg" id="kind" role="group" aria-labelledby="kindLbl">
+                <button data-v="">Entrenamiento</button><button data-v="pre">Test 1 m/s · antes</button><button data-v="post">Test 1 m/s · después</button>
+              </div>
+              <div class="testhint" id="testHint" hidden></div></div>
           </div>
         </section>
 
@@ -350,8 +385,9 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
           <div class="big">
             <div class="repno" id="repno">REP —</div>
             <div class="vel" id="vel">—<small>m/s</small></div>
-            <div class="zone" id="zone"><i></i><span>Velocidad media propulsiva</span></div>
+            <button type="button" class="zone" id="zone" title="Ver referencias de zonas"><i></i><span>Velocidad media propulsiva</span><b class="zinfo">i</b></button>
             <div class="zbar" id="zbar"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="zref" id="zref" hidden></div>
           </div>
           <div class="tiles">
             <div class="tile"><div class="label">Pico</div><div class="v" id="tPeak">—</div></div>
@@ -365,6 +401,13 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
             <div class="tile sm"><div class="label">T. bajo tensión</div><div class="v" id="tTut">—</div></div>
             <div class="tile sm"><div class="label">Excéntrica</div><div class="v" id="tEcc">—</div></div>
           </div>
+          <div class="sci" id="sci">
+            <div class="scard" id="sInt"><div class="label">Intensidad</div><div class="v">—</div><div class="d">% 1RM según la velocidad</div></div>
+            <div class="scard" id="sRir"><div class="label">Reps en recámara</div><div class="v">—</div><div class="d">carácter del esfuerzo</div></div>
+            <div class="scard" id="sFat"><div class="label">Fatiga de la serie</div><div class="v">—</div><div class="d">según la pérdida de velocidad</div></div>
+          </div>
+          <button type="button" class="linkbtn" id="sciMore">Cómo se calcula · referencias</button>
+          <div class="sciref" id="sciRef" hidden></div>
           <div class="curvewrap" id="curveWrap" hidden>
             <span class="label">Curva de velocidad · última rep</span>
             <svg id="curve" class="chart" viewBox="0 0 340 90" role="img" aria-label="Velocidad durante la última repetición"></svg>
@@ -453,9 +496,10 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
       <div class="row">
         <button class="btn2" id="snCal">Recalibrar</button>
         <button class="btn2" id="snRestart">Reiniciar sensor</button>
+        <button class="btn2 danger" id="snOff">Apagar sensor</button>
         <span class="toast" id="snToast" role="status"></span>
       </div>
-      <p class="note">Recalibrar: dejá la barra quieta 1 segundo. Reiniciar: equivale a tocar RST en la placa.</p>
+      <p class="note">Recalibrar: dejá la barra quieta 1 segundo. Reiniciar: equivale a tocar RST en la placa. Apagar: la placa queda dormida y casi no gasta batería; para prenderla, tocá BOOT. También se apaga sola sin uso (10 min, o 30 min con la app abierta; nunca mientras está enchufada al USB), y manteniendo BOOT 3 segundos.</p>
     </section>
 
     <section class="panel" id="wifiPanel" hidden>
@@ -534,19 +578,21 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
 // Datos base
 // =====================================================================
 const EXERCISES = [ // MVT = velocidad mínima al 1RM (m/s), referencias habituales de VBT
-  {id:'sq', name:'Sentadilla', mvt:0.30},
-  {id:'bp', name:'Press de banca', mvt:0.17},
-  {id:'dl', name:'Peso muerto', mvt:0.15},
-  {id:'ht', name:'Hip thrust', mvt:0.25},
-  {id:'mp', name:'Press militar', mvt:0.20},
-  {id:'pc', name:'Cargada de potencia', mvt:0.80},
+  // ecc: true = empieza bajando (la placa no cuenta una subida sin bajada previa, p. ej. sacar del rack)
+  {id:'sq', name:'Sentadilla', mvt:0.30, ecc:true},
+  {id:'bp', name:'Press de banca', mvt:0.17, ecc:true},
+  {id:'dl', name:'Peso muerto', mvt:0.15, ecc:false},
+  {id:'ht', name:'Hip thrust', mvt:0.25, ecc:false},
+  {id:'mp', name:'Press militar', mvt:0.20, ecc:false},
+  {id:'pc', name:'Cargada de potencia', mvt:0.80, ecc:false},
 ];
 const ZONES = [ // zonas de entrenamiento por velocidad media
-  {max:0.50, name:'Fuerza máxima', c:'--z1'},
-  {max:0.75, name:'Fuerza acelerativa', c:'--z2'},
-  {max:1.00, name:'Fuerza-velocidad', c:'--z3'},
-  {max:1.30, name:'Velocidad-fuerza', c:'--z4'},
-  {max:99,   name:'Velocidad', c:'--z5'},
+  // rangos del continuo fuerza-velocidad (Mann); % 1RM y objetivo: orientativos, varían según el ejercicio
+  {max:0.50, name:'Fuerza máxima', c:'--z1', rng:'< 0,50', rm:'85 – 100 %', goal:'Fuerza máxima con cargas altas'},
+  {max:0.75, name:'Fuerza acelerativa', c:'--z2', rng:'0,50 – 0,75', rm:'70 – 85 %', goal:'Mover cargas pesadas rápido'},
+  {max:1.00, name:'Fuerza-velocidad', c:'--z3', rng:'0,75 – 1,00', rm:'50 – 70 %', goal:'Potencia con cargas medias'},
+  {max:1.30, name:'Velocidad-fuerza', c:'--z4', rng:'1,00 – 1,30', rm:'30 – 50 %', goal:'Potencia con cargas livianas'},
+  {max:99,   name:'Velocidad', c:'--z5', rng:'> 1,30', rm:'< 30 %', goal:'Velocidad y arranque explosivo'},
 ];
 const G = 9.81, DAY = 86400000;
 const $ = id => document.getElementById(id);
@@ -573,7 +619,7 @@ const S = {
   athletes:[], sets:[], demo:false,
   calSec:null, calLocal:0, onlineUrl:'', online:false,
   source:'demo', sound:true, battery:null, sensorState:null, cal:0, hz:null, fw:null, volt:null, connected:false,
-  tab:'Serie', detail:null, pgAth:'', pgEx:'sq',
+  tab:'Serie', detail:null, pgAth:'', pgEx:'sq', setKind:'',
 };
 Object.assign(S, store.get('trakvbt.prefs', {}));
 const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl});
@@ -599,6 +645,12 @@ const power = (load, r) => has(r.pk) ? load*r.pk : load*G*r.v;
 const force = (load, r) => has(r.fk) ? load*r.fk : null;
 const peakPower = (load, r) => has(r.ppk) ? load*r.ppk : null;
 const zoneOf = v => ZONES.findIndex(z => v < z.max);
+// tabla de referencia de zonas; counts (opcional): reps en cada zona
+function zoneTable(counts){
+  const tot = counts ? counts.reduce((a,b)=>a+b,0) : 0;
+  return `<table class="mini ztab"><tr><th>Zona</th><th>Vel. media (m/s)</th><th>% 1RM aprox.</th><th class="zgoal">Objetivo</th>${counts?'<th>Reps</th>':''}</tr>
+    ${ZONES.map((z,i)=>`<tr><td><i class="zsw" style="background:var(${z.c})"></i>${z.name}</td><td>${z.rng}</td><td>${z.rm}</td><td class="zgoal">${z.goal}</td>${counts?`<td>${counts[i]}${tot?` <small>(${Math.round(counts[i]/tot*100)} %)</small>`:''}</td>`:''}</tr>`).join('')}</table>`;
+}
 
 // Recta carga-velocidad con puntos {x:carga, y:mejor VMP}
 function fitLV(pts, mvt){
@@ -645,6 +697,135 @@ function profileOf(ath, ex, extra=[]){
 }
 
 // =====================================================================
+// Análisis científico de la serie — grupo de González-Badillo (Univ. Pablo de Olavide)
+// =====================================================================
+const REFS = {
+  gb2010: 'González-Badillo JJ, Sánchez-Medina L (2010). Movement velocity as a measure of loading intensity in resistance training. Int J Sports Med 31(5):347–352.',
+  sm2017: 'Sánchez-Medina L, Pallarés JG, Pérez CE, Morán-Navarro R, González-Badillo JJ (2017). Estimation of relative load from bar velocity in the full back squat exercise. Sports Med Int Open 1:E80–E88.',
+  sm2011: 'Sánchez-Medina L, González-Badillo JJ (2011). Velocity loss as an indicator of neuromuscular fatigue during resistance training. Med Sci Sports Exerc 43(9):1725–1734.',
+  gb2017: 'González-Badillo JJ, Yáñez-García JM, Mora-Custodio R, Rodríguez-Rosell D (2017). Velocity loss as a variable for monitoring resistance exercise. Int J Sports Med 38(3):217–225.',
+  rr2020: 'Rodríguez-Rosell D, Yáñez-García JM, Sánchez-Medina L, Mora-Custodio R, González-Badillo JJ (2020). Relationship between velocity loss and repetitions in reserve in the bench press and back squat exercises. J Strength Cond Res 34(9):2537–2547.',
+  pb2017: 'Pareja-Blanco F, Rodríguez-Rosell D, Sánchez-Medina L, et al. (2017). Effects of velocity loss during resistance training on athletic performance, strength gains and muscle adaptations. Scand J Med Sci Sports 27(7):724–735.',
+  mann: 'Mann JB (2016). Developing Explosive Athletes: Use of Velocity Based Training in Athletes. Ultimate Athlete Concepts. · Mann JB, Ivey PA, Sayers SP (2015). Velocity-based training in football. Strength Cond J 37(6):52–57.',
+};
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+// 1) % 1RM a partir de la VMP — ecuaciones generales (VMP de la rep más rápida de la serie)
+const PCT_EQ = {
+  bp: {f: v => 8.4326*v*v - 73.501*v + 112.33, lo:30, ref:'gb2010'},   // press de banca, R² 0,98
+  sq: {f: v => -5.961*v*v - 50.71*v + 117.0, lo:40, ref:'sm2017'},     // sentadilla completa, R² 0,95, EEE 4 %
+};
+function intensity(ath, ex, load, v){
+  if (!has(v) || v <= 0) return null;
+  // perfil individual del atleta (más preciso) si es confiable
+  const P = ath ? profileOf(ath, ex) : null;
+  if (P && P.ok && P.pts.length >= 3 && P.r2 >= 0.85){
+    const pct = (v - P.b) / P.m / P.rm * 100;
+    if (isFinite(pct) && pct > 10) return {pct: clamp(pct, 10, 100), src:'individual', rm: pct >= 50 && load ? load*100/clamp(pct,10,100) : null};
+  }
+  const E = PCT_EQ[ex]; if (!E) return null;
+  const raw = E.f(v), pct = clamp(raw, E.lo, 100);
+  return {pct, src:'general', ref:E.ref, below: raw < E.lo, rm: pct >= 50 && pct < 100 && load ? load*100/pct : null};
+}
+const pctTxt = I => !I ? '—' : I.below ? `< ${I.pct}` : `${Math.round(I.pct)}`;
+
+// 2) Nivel de fatiga por pérdida de velocidad en la serie
+//    20 %: corte recomendado para fuerza y salto (Pareja-Blanco 2017). Más de ~30 % (sentadilla) / ~35 % (banca):
+//    el amonio sube sobre reposo, fatiga metabólica alta (Sánchez-Medina y González-Badillo 2011).
+function fatigueLevel(ex, vl){
+  const thr = ex === 'bp' ? 35 : 30;
+  if (vl < 10) return {lv:0, name:'Baja', cls:'ok', thr};
+  if (vl < 20) return {lv:1, name:'Moderada', cls:'ok', thr};
+  if (vl <= thr) return {lv:2, name:'Alta', cls:'warn', thr};
+  return {lv:3, name:'Muy alta', cls:'bad', thr};
+}
+
+// 3) Carácter del esfuerzo: reps hechas y reps en recámara
+//    Press de banca: % de reps hechas según la pérdida de velocidad y la carga (González-Badillo et al. 2017).
+const BP_REPS = [
+  {max:72.5, a:-0.00855, b:1.83311, c:5.55281},    // 50–70 % 1RM
+  {max:77.5, a:-0.00705, b:1.71404, c:10.74584},   // 75 %
+  {max:82.5, a:-0.00780, b:1.72215, c:13.38519},   // 80 %
+  {max:999,  a:-0.00813, b:1.74323, c:20.88282},   // 85 %
+];
+function bpRepsPct(vl, pct){
+  const e = BP_REPS.find(b => (pct||60) < b.max), x = clamp(vl, 5, 75);
+  return clamp(e.a*x*x + e.b*x + e.c, 5, 100);
+}
+function effort(s){
+  const vs = s.reps.map(r=>r.v), n = vs.length;
+  if (n < 2) return null;
+  const best = Math.max(...vs), ib = vs.indexOf(best), last = vs[n-1];
+  const vl = (1 - last/best)*100;
+  const I = intensity(s.athlete, s.exercise, s.load, best);
+  let rir = null, method = '', approx = vl < 15;
+  // tendencia de la serie: velocidad que cae rep a rep, extrapolada hasta la velocidad del 1RM (fallo)
+  const seg = vs.slice(ib);
+  let trend = null;
+  if (seg.length >= 3){
+    const k = seg.length, mx = (k-1)/2, my = seg.reduce((a,b)=>a+b,0)/k;
+    let sxy = 0, sxx = 0; seg.forEach((v,i)=>{ sxy += (i-mx)*(v-my); sxx += (i-mx)**2; });
+    const slope = sxy/sxx, vf = exo(s.exercise).mvt;
+    if (slope < -0.004) trend = Math.max(0, (last - vf) / -slope);
+  }
+  // las ecuaciones de banca valen para pérdidas de 15 a 75 %; con menos pérdida se da un mínimo
+  let min = false, many = false;
+  if (s.exercise === 'bp'){
+    const p = bpRepsPct(Math.max(vl, 15), I && I.pct);
+    rir = Math.max(0, n*100/p - n); method = 'gb2017'; min = vl < 15; approx = false;
+  } else {
+    // sentadilla y otros: con la misma pérdida se completa un % de reps MAYOR que en banca (Rodríguez-Rosell 2020),
+    // así que la ecuación de banca es un tope; se usa la tendencia de la serie si da menos
+    const cap = vl >= 15 ? Math.max(0, n*100/bpRepsPct(vl, I && I.pct) - n) : Infinity;
+    if (trend != null) { rir = Math.min(trend, cap); method = 'trend'; }
+    else if (vl >= 15) { rir = cap; method = 'cap'; }
+    else { rir = 10; many = true; method = 'none'; }
+    approx = true;
+  }
+  if (last <= exo(s.exercise).mvt + 0.02) { rir = 0; min = false; many = false; }
+  const r = Math.round(rir);
+  return {done:n, rir:r, possible:n + r, plus: many || r >= 10, many, min, approx, method, vl, I};
+}
+const rirTxt = E => !E ? '—' : E.many ? 'Muchas' : E.plus ? '10+' : E.min ? `≥${E.rir}` : `${E.approx?'≈':''}${E.rir}`;
+const ceTxt = E => !E ? '—' : E.many ? `${E.done} (—)` : `${E.done} (${E.plus?'≥'+(E.done+10):E.min?'≥'+E.possible:E.possible})`;
+
+// 4) Control de fatiga con la carga que se mueve a ~1 m/s (antes y después de la sesión)
+//    Sánchez-Medina y González-Badillo 2011; Rodríguez-Rosell et al. 2020.
+const testVal = s => { const v = s.reps.map(r=>r.v).sort((a,b)=>b-a); return v.length >= 2 ? (v[0]+v[1])/2 : v[0]; };
+function load1ms(ath, ex){
+  const P = ath ? profileOf(ath, ex) : null;
+  if (P && P.ok && P.b > 1.05){ const l = (1 - P.b)/P.m; if (l > 0) return {kg: Math.round(l/2.5)*2.5, src:'perfil'}; }
+  const rm = ath ? currentRM(ath, ex) : null, E = PCT_EQ[ex];
+  if (rm && E){ // % 1RM que corresponde a 1,00 m/s en la ecuación general
+    return {kg: Math.round(rm*E.f(1.0)/100/2.5)*2.5, src:'ecuación'};
+  }
+  return null;
+}
+function testResult(s){
+  if (!s.test) return null;
+  const v = testVal(s), day = dayKey(s.time);
+  const same = S.sets.filter(x => x.test && x.athlete===s.athlete && x.exercise===s.exercise && x.load===s.load && x.id!==s.id);
+  if (s.test === 'pre'){
+    const base = same.filter(x => x.test==='pre' && x.time < s.time && dayKey(x.time)!==day && s.time - x.time < 42*DAY).slice(-5);
+    if (!base.length) return {v, kind:'pre', first:true, name:'Primera medición', cls:'info', txt:'Queda como base para comparar los próximos días.'};
+    const b = base.reduce((a,x)=>a+testVal(x),0)/base.length, d = (v/b - 1)*100;
+    const st = d >= 3 ? {name:'Mejor que su base', cls:'ok'} : d >= -3 ? {name:'Normal', cls:'ok'} : d >= -6 ? {name:'Fatiga leve', cls:'warn'} : {name:'Fatiga marcada', cls:'bad'};
+    return {v, kind:'pre', base:b, d, n:base.length, ...st};
+  }
+  const pre = same.filter(x => x.test==='pre' && dayKey(x.time)===day && x.time < s.time).pop();
+  if (!pre) return {v, kind:'post', name:'Sin test de antes', cls:'info', txt:'Hacé el test antes de la sesión, con la misma carga, para medir cuánto fatigó.'};
+  const pv = testVal(pre), loss = (1 - v/pv)*100;
+  const st = loss < 5 ? {name:'Fatiga baja', cls:'ok'} : loss < 15 ? {name:'Fatiga moderada', cls:'ok'} : loss < 25 ? {name:'Fatiga alta', cls:'warn'} : {name:'Fatiga muy alta', cls:'bad'};
+  return {v, kind:'post', pre:pv, loss, ...st};
+}
+function testText(R){
+  if (!R) return '';
+  if (R.kind === 'pre') return R.first ? `Test antes: ${fmt(R.v)} m/s · ${R.txt}` : `Test antes: ${fmt(R.v)} m/s · ${R.d>=0?'+':''}${fmt(R.d,1)} % vs. su base (${fmt(R.base)} m/s) · ${R.name}`;
+  return R.pre == null ? `Test después: ${fmt(R.v)} m/s · ${R.txt}` : `Test después: ${fmt(R.v)} m/s · pérdida ${fmt(R.loss,1)} % vs. antes (${fmt(R.pre)} m/s) · ${R.name}`;
+}
+function refsHTML(keys){ return `<ol class="refs">${keys.map(k=>`<li>${esc(REFS[k])}</li>`).join('')}</ol>`; }
+
+// =====================================================================
 // Demo
 // =====================================================================
 const DEMO = [
@@ -680,6 +861,11 @@ function seedDemo(){
         for (let k=1;k<=n;k++) reps.push(makeRep(k, base));
         S.sets.push(finishSet({id:uid('s'), athlete:a.id, exercise:ex, load, cut:20, reps, time:t0 + i*7*60000, example:true}));
       });
+      if (ex === 'sq'){ // tests de la carga de 1 m/s: antes y después de la sesión (la última semana llega más cansado)
+        const v0 = a.v0[ex], tl = Math.round((v0-1)*rm/(v0-exo(ex).mvt)/2.5)*2.5, tv = demoVel(a, ex, tl, f) * (w===1 ? 0.93 : 1);
+        const mk = (k, fac) => { const r = []; for (let j=1;j<=3;j++) r.push(makeRep(j, tv*fac)); return finishSet({id:uid('s'), athlete:a.id, exercise:ex, load:tl, cut:20, reps:r, time:t0 + k, test:k<0?'pre':'post', example:true}); };
+        S.sets.push(mk(-10*60000, 1), mk(40*60000, 0.88 - 0.02*(w%3)));
+      }
     }
   }));
 }
@@ -717,6 +903,7 @@ function startSet(fromSensor){
   if (S.recording) return;
   S.recording = true; S.reps = []; S.t0 = Date.now();
   S.liveSet = {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut};
+  if (S.setKind) S.liveSet.test = S.setKind;
   S.liveId = uid('s');
   try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); } catch(e){}
   try { navigator.wakeLock && navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{}); } catch(e){}
@@ -729,7 +916,9 @@ function endSet(fromSensor){
   if (!S.recording) return;
   S.recording = false; clearTimeout(demoTimer); clearInterval(clock);
   try { wake && wake.release(); } catch(e){} wake = null;
-  if (S.reps.length){ S.sets.push(finishSet({id:S.liveId || uid('s'), ...S.liveSet, reps:S.reps.slice(), time:S.t0})); saveAll(); }
+  if (S.reps.length){ S.sets.push(finishSet({id:S.liveId || uid('s'), ...S.liveSet, reps:S.reps.slice(), time:S.t0})); saveAll();
+    if (S.liveSet.test) S.setKind = '';   // después del test se vuelve a series de entrenamiento
+  }
   try { localStorage.removeItem('trakvbt.live'); } catch(e){}
   S.liveId = null;
   if (!fromSensor) cmd('stop');
@@ -790,6 +979,8 @@ function renderSerie(newRep){
   $('athlete').value = S.athlete; $('exercise').value = S.exercise; $('load').value = kg(S.load);
   [...$('cut').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.cut)));
   [...$('gap').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.autoGap)));
+  [...$('kind').children].forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.v === S.setKind)); b.disabled = S.recording; });
+  renderTestHint();
   ['athlete','exercise','load','loadUp','loadDn'].forEach(id => $(id).disabled = S.recording);
 
   let shown = null;
@@ -825,6 +1016,7 @@ function renderSerie(newRep){
     $('tTut').innerHTML = has(last.tut) ? `${fmt(last.tut,1)}<small>s</small>` : '—';
     $('tEcc').innerHTML = has(last.ev) && last.ev>0 ? `${fmt(last.ev)}<small>m/s</small>` : '—';
     drawCurve(last);
+    renderSci(shown, reps, best, vl);
     if (newRep){ $('vel').classList.remove('pop'); void $('vel').offsetWidth; $('vel').classList.add('pop'); }
   } else {
     $('repno').textContent = 'REP —';
@@ -833,6 +1025,7 @@ function renderSerie(newRep){
     [...$('zbar').children].forEach(s=>s.classList.remove('on'));
     ['tPeak','tPow','tRom','tVL','tF','tPP','tTut','tEcc'].forEach(id=>$(id).textContent='—'); $('tVLbox').className='tile';
     $('curveWrap').hidden = true;
+    renderSci(null, [], 0, 0);
   }
   renderAlert(reps, vl, cut, best, shown);
   renderCal();
@@ -870,7 +1063,9 @@ function renderCal(){
   $('calFill').style.width = `${Math.round((S.cal||0)*100)}%`;
   $('calBtn').disabled = busy || off;
   $('calBtn').textContent = done ? 'Recalibrar' : 'Calibrar';
+  if (off && S.sleeping){ $('calTitle').textContent = 'Sensor apagado'; $('calText').textContent = 'Tocá BOOT en la placa para prenderlo; la app se reconecta sola.'; return; }
   if (off){ $('calTitle').textContent = 'Sensor sin conexión'; $('calText').textContent = 'Prendé la placa y conectate a su red para calibrar.'; return; }
+  if (busy && S.hz === 0){ $('calTitle').textContent = 'El sensor de movimiento no responde'; $('calText').textContent = 'Tocá RST en la placa para reiniciarla.'; return; }
   if (busy){ $('calTitle').textContent = 'Calibrando…'; $('calText').textContent = 'Dejá la barra quieta un segundo.'; return; }
   if (done){ $('calTitle').textContent = `Calibrado ${calAgo(S.calSec)}`;
     $('calText').textContent = S.calSec > 3*3600 ? 'Pasó bastante tiempo: conviene recalibrar.' : 'Listo para medir. Recalibrá si cambiás el sensor de lugar.'; return; }
@@ -892,8 +1087,54 @@ setInterval(() => { // en demo el "hace X min" se actualiza solo
   if (S.source==='demo' && S.calLocal && S.sensorState===1){ S.calSec = (Date.now()-S.calLocal)/1000; if (S.tab==='Serie') renderCal(); }
 }, 15000);
 
+function sciCard(id, cls, v, d){ const el = $(id); el.className = 'scard' + (cls ? ' '+cls : ''); el.querySelector('.v').innerHTML = v; el.querySelector('.d').innerHTML = d; }
+function renderSci(shown, reps, best, vl){
+  if (!shown || !reps.length){
+    sciCard('sInt', '', '—', '% 1RM según la velocidad'); sciCard('sRir', '', '—', 'carácter del esfuerzo'); sciCard('sFat', '', '—', 'según la pérdida de velocidad'); return;
+  }
+  const set = {athlete:shown.athlete, exercise:shown.exercise, load:shown.load, reps};
+  const I = intensity(set.athlete, set.exercise, set.load, best);
+  if (I) sciCard('sInt', 'info', `${pctTxt(I)}<small>% 1RM</small>`,
+    `${I.rm ? `1RM del día ≈ ${Math.round(I.rm)} kg · ` : ''}${I.src==='individual' ? 'perfil del atleta' : 'ecuación general'}`);
+  else sciCard('sInt', '', '—', S.athlete ? 'hacé series a 2+ cargas para tener su perfil' : 'elegí un atleta para estimarla');
+  const E = reps.length >= 2 ? effort(set) : null;
+  if (E) sciCard('sRir', E.rir <= 1 && !E.plus ? 'bad' : E.rir <= 3 && !E.plus ? 'warn' : 'ok', `${rirTxt(E)}${E.many?'':'<small>reps</small>'}`, E.many ? 'pérdida &lt; 15 %: lejos del fallo' : `CE ${ceTxt(E)} · hechas (posibles)`);
+  else sciCard('sRir', '', '—', 'desde la 2.ª rep');
+  if (reps.length >= 2){ const F = fatigueLevel(shown.exercise, vl);
+    sciCard('sFat', F.cls, F.name, `pérdida ${Math.round(vl)} %${F.lv===3?' · sube el amonio':F.lv===1?' · rango de fuerza y potencia':''}`); }
+  else sciCard('sFat', '', '—', 'desde la 2.ª rep');
+}
+function renderTestHint(){
+  const h = $('testHint');
+  if (!S.setKind){ h.hidden = true; return; }
+  const L = S.athlete ? load1ms(S.athlete, S.exercise) : null;
+  h.hidden = false;
+  h.innerHTML = `<b>${S.setKind==='pre'?'Antes de entrenar':'Al terminar la sesión'}:</b> 3 reps a máxima velocidad con la carga que se mueve a ~1 m/s`
+    + (L ? ` (≈ <b>${kg(L.kg)} kg</b> según ${L.src==='perfil'?'su perfil':'la ecuación general y su 1RM'})` : '')
+    + `. Usá siempre la misma carga para poder comparar.`;
+}
+$('kind').onclick = e => { const b = e.target.closest('button'); if (!b || S.recording) return; S.setKind = b.dataset.v;
+  if (S.setKind && S.athlete){ const L = load1ms(S.athlete, S.exercise); if (L) S.load = L.kg; }
+  renderSerie(); };
+$('sciMore').onclick = () => {
+  const r = $('sciRef');
+  if (r.hidden) r.innerHTML = `<b>Intensidad (% 1RM):</b> con la velocidad de la rep más rápida. Usa el perfil carga-velocidad del atleta si es confiable (3+ series en 3 semanas); si no, las ecuaciones generales de sentadilla completa y press de banca.<br>
+    <b>Reps en recámara:</b> en banca, con la relación entre la pérdida de velocidad y el % de reps hechas según la carga. En sentadilla y el resto, con la caída de velocidad rep a rep extrapolada hasta la velocidad del 1RM, sin superar la ecuación de banca (en sentadilla, con la misma pérdida se hacen más reps de las posibles). CE = hechas (posibles).<br>
+    <b>Fatiga:</b> baja &lt; 10 %, moderada 10–20 % (rango recomendado para fuerza y salto), alta hasta ~30 % en sentadilla / ~35 % en banca, muy alta por encima (el amonio en sangre sube sobre el reposo).<br>
+    <b>Test de 1 m/s:</b> media de las 2 reps más rápidas con la misma carga. Antes de entrenar se compara con su base (últimos tests): ±3 % normal, −3 a −6 % fatiga leve, peor que −6 % fatiga marcada. Después, la pérdida contra el test de antes. Los umbrales del test son orientativos.
+    ${refsHTML(['gb2010','sm2017','gb2017','rr2020','sm2011','pb2017'])}`;
+  r.hidden = !r.hidden;
+};
 function renderAlert(reps, vl, cut, best, shown){
   const al = $('alert');
+  if (!S.recording && shown && shown.test && shown.id){
+    const R = testResult(shown);
+    al.className = 'alert ' + (R.cls==='bad'?'bad':R.cls==='warn'?'warn':R.cls==='info'?'info':'ok'); al.hidden = false;
+    al.innerHTML = `${R.cls==='bad'||R.cls==='warn'?ICON.warn:ICON.info}<span>${testText(R)}</span>`;
+    return;
+  }
+  if (S.recording && S.liveSet && S.liveSet.test && !reps.length){ al.className='alert info'; al.hidden=false;
+    al.innerHTML = `${ICON.info}<span>Test de la carga de 1 m/s (${S.liveSet.test==='pre'?'antes':'después'} de la sesión): 3 reps a máxima velocidad, con pausa arriba.</span>`; return; }
   if (S.recording && reps.length > 1 && vl > cut){ al.className='alert bad'; al.hidden=false;
     al.innerHTML = `${ICON.warn}<span>Pérdida de ${Math.round(vl)}% · cortá la serie</span>`;
   } else if (S.recording && !reps.length){ al.className='alert info'; al.hidden=false;
@@ -983,7 +1224,7 @@ function drawLiveProfile(){
 function setRow(s, showAth){
   const e = exo(s.exercise), hh = new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
-    <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b>${s.example?'<span class="tag">EJEMPLO</span>':''}<br>${s.reps.length} reps · mejor ${fmt(s.best)} · media ${fmt(s.mean)} m/s · ${hh}</div>
+    <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b>${s.test?`<span class="tag test">TEST 1 m/s ${s.test==='pre'?'ANTES':'DESPUÉS'}</span>`:''}${s.example?'<span class="tag">EJEMPLO</span>':''}<br>${s.reps.length} reps · mejor ${fmt(s.best)} m/s${(I=>I?` · ${pctTxt(I)} % 1RM`:'')(intensity(s.athlete, s.exercise, s.load, s.best))}${(E=>E?` · CE ${ceTxt(E)}`:'')(effort(s))} · ${hh}</div>
     <div class="vlp ${s.vl>(s.cut||20)?'bad':'ok'}">−${Math.round(s.vl)}%</div></div>`;
 }
 function drawTodaySets(){
@@ -1008,6 +1249,7 @@ function editSet(id){
     <label class="field"><span class="label">Atleta</span><select class="sel" id="esAth">${opts}</select></label>
     <label class="field"><span class="label">Ejercicio</span><select class="sel" id="esEx">${exs}</select></label>
     <label class="field"><span class="label">Carga (kg)</span><input class="txt" id="esLoad" inputmode="decimal" value="${kg(s.load)}"></label>
+    <label class="field"><span class="label">Tipo de serie</span><select class="sel" id="esKind"><option value="">Entrenamiento</option><option value="pre" ${s.test==='pre'?'selected':''}>Test 1 m/s · antes</option><option value="post" ${s.test==='post'?'selected':''}>Test 1 m/s · después</option></select></label>
     <table class="mini"><tr><th>Rep</th><th>VMP</th><th>Pico</th><th>Rec.</th><th>Pot.</th></tr>
       ${s.reps.map((r,i)=>`<tr><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(s.load,r))} W</td></tr>`).join('')}</table>
     <div class="row"><button class="btn1" id="esSave">Guardar</button><button class="btn2" id="esCancel">Cancelar</button><button class="btn2 danger" id="esDel" style="margin-left:auto">Borrar serie</button></div>`);
@@ -1015,6 +1257,7 @@ function editSet(id){
   $('esSave').onclick = () => {
     const l = parseFloat($('esLoad').value.replace(',','.'));
     s.athlete = $('esAth').value; s.exercise = $('esEx').value; if (!isNaN(l) && l >= 0) s.load = l;
+    const k = $('esKind').value; if (k) s.test = k; else delete s.test;
     saveAll(); closeSheet(); renderAll();
   };
   $('esDel').onclick = () => { if (!confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); saveAll(); closeSheet(); renderAll(); };
@@ -1133,6 +1376,15 @@ function progressData(ath, ex, sinceMs=0){
   const fits = ses.filter(o=>o.fit.ok);
   return {ses, rmPts, powPts, velSeries, refLoads, firstFit: fits[0], lastFit: fits[fits.length-1]};
 }
+function testsOf(ath, ex, sinceMs=0){
+  return S.sets.filter(s=>s.test && s.athlete===ath && s.exercise===ex && s.time>=sinceMs).sort((a,b)=>a.time-b.time).map(s=>({s, R:testResult(s)}));
+}
+function testsTable(T){
+  return `<table class="mini"><tr><th>Fecha</th><th>Momento</th><th>Carga</th><th>VMP</th><th>Comparación</th><th>Estado</th></tr>
+    ${T.slice().reverse().map(({s,R})=>`<tr><td>${dShort(s.time)}</td><td>${s.test==='pre'?'Antes':'Después'}</td><td>${kg(s.load)} kg</td><td>${fmt(R.v)}</td>
+      <td>${R.kind==='pre' ? (R.first?'base':`${R.d>=0?'+':''}${fmt(R.d,1)} % vs. base`) : (R.pre==null?'—':`−${fmt(R.loss,1)} % vs. antes`)}</td>
+      <td class="${R.cls==='bad'?'bad':''}">${R.name}</td></tr>`).join('')}</table>`;
+}
 function delta(a, b, unit, d=0, pct=true){
   if (a==null || b==null) return '';
   const diff = b - a, p = a ? diff/a*100 : 0;
@@ -1174,6 +1426,17 @@ function renderProgreso(){
           D.firstFit ? [{fit:D.firstFit.fit, color:'var(--muted)', dash:true}].concat(D.lastFit!==D.firstFit?[{fit:D.lastFit.fit, color:'var(--s1)'}]:[]) : [], ex.mvt)}</svg>
         <div class="legend">${D.firstFit?`<span><i class="ln" style="background:var(--muted)"></i>${dShort(D.firstFit.time)}</span>`:''}${D.lastFit&&D.lastFit!==D.firstFit?`<span><i class="ln" style="background:var(--s1)"></i>${dShort(D.lastFit.time)}</span>`:''}${!D.firstFit?'<span>Hacé una sesión con 2+ cargas para ver el perfil.</span>':''}</div></section>
     </div>
+    ${(() => { const T = testsOf(S.pgAth, S.pgEx);
+      if (!T.length) return `<section class="panel"><div class="phead"><h2>Control de fatiga · carga de 1 m/s</h2></div>
+        <p class="note" style="margin:0">En la pestaña Serie elegí <b>Test 1 m/s · antes</b> al empezar la sesión (y <b>después</b> al terminar): 3 reps a máxima velocidad con la misma carga. Acá vas a ver si llega fresco o fatigado comparado con su base.</p></section>`;
+      const pre = T.filter(x=>x.s.test==='pre').map(x=>({t:x.s.time, y:x.R.v})), post = T.filter(x=>x.s.test==='post').map(x=>({t:x.s.time, y:x.R.v}));
+      const lastPre = T.filter(x=>x.s.test==='pre').pop();
+      return `<section class="panel"><div class="phead"><h2>Control de fatiga · carga de 1 m/s</h2><span class="sub">media de las 2 mejores reps</span></div>
+        ${lastPre && !lastPre.R.first ? `<div class="alert ${lastPre.R.cls==='bad'?'bad':lastPre.R.cls==='warn'?'warn':'ok'}" style="margin:0 0 10px">${lastPre.R.cls==='bad'||lastPre.R.cls==='warn'?ICON.warn:ICON.ok}<span>Último test (${dShort(lastPre.s.time)}): ${lastPre.R.name} · ${lastPre.R.d>=0?'+':''}${fmt(lastPre.R.d,1)} % vs. su base</span></div>` : ''}
+        <svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'var(--s1)', pts:pre}, {color:'var(--s4)', pts:post}])}</svg>
+        <div class="legend"><span><i class="ln" style="background:var(--s1)"></i>Antes de entrenar</span><span><i class="ln" style="background:var(--s4)"></i>Después</span></div>
+        ${testsTable(T.slice(-8))}
+        <p class="note">Antes: comparado con el promedio de sus últimos tests (misma carga). Después: pérdida contra el test de antes del mismo día. Método: Sánchez-Medina y González-Badillo (2011); Rodríguez-Rosell y col. (2020). Umbrales orientativos.</p></section>`; })()}
     <div class="row" style="margin-top:0"><button class="btn1" id="pgReport">Informe PDF de ${esc(athName(S.pgAth))}</button></div>`;
   $('pgReport').onclick = () => openReport(S.pgAth);
 }
@@ -1218,19 +1481,30 @@ function buildReport(){
           <div class="legend">${D.velSeries.map(s=>`<span><i class="ln" style="background:${s.color}"></i>${s.name}</span>`).join('')}</div></div>
         <div><h3>Potencia media máxima</h3><svg class="chart" viewBox="0 0 340 180">${timeSVG([{color:'#13917F', pts:D.powPts}], {yFmt:v=>Math.round(v), unit:' W'})}</svg></div>
       </div>
+      <h3>Reps por zona de velocidad</h3>
+      ${zoneTable(ZONES.map((_,i)=>sets.filter(s=>s.exercise===ex).reduce((n,s)=>n+s.reps.filter(r=>zoneOf(r.v)===i).length,0)))}
       <h3>Sesiones</h3>
       <table class="mini"><tr><th>Fecha</th><th>Series</th><th>Carga máx.</th><th>Mejor VMP</th><th>1RM est.</th><th>Pot. máx.</th></tr>
         ${D.ses.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${kg(o.maxLoad)} kg</td><td>${fmt(o.best)}</td><td>${o.fit.ok?Math.round(o.fit.rm)+' kg':'—'}</td><td>${Math.round(o.pmax)} W</td></tr>`).join('')}</table>
       ${lastS?`<h3>Última sesión · ${dLong(lastS.time)}</h3>
-      <table class="mini"><tr><th>Carga</th><th>Reps</th><th>Mejor VMP</th><th>Media</th><th>Pico</th><th>Pérdida</th><th>Pot. media</th></tr>
-        ${lastS.sets.map(s=>{ const vp = Math.max(...s.reps.map(r=>r.vp||0)); const pw = Math.max(...s.reps.map(r=>power(s.load,r)));
-          return `<tr><td>${kg(s.load)} kg</td><td>${s.reps.length}</td><td>${fmt(s.best)}</td><td>${fmt(s.mean)}</td><td>${fmt(vp)}</td><td class="${s.vl>(s.cut||20)?'bad':''}">${Math.round(s.vl)}%</td><td>${Math.round(pw)} W</td></tr>`; }).join('')}</table>`:''}
+      <table class="mini"><tr><th>Carga</th><th>Reps</th><th>Mejor VMP</th><th>% 1RM</th><th>Pérdida</th><th>CE</th><th>Fatiga</th><th>Pot. media</th></tr>
+        ${lastS.sets.map(s=>{ const pw = Math.max(...s.reps.map(r=>power(s.load,r)));
+          const I = intensity(s.athlete, s.exercise, s.load, s.best), E = effort(s), F = s.reps.length>1 ? fatigueLevel(s.exercise, s.vl) : null;
+          return `<tr><td>${kg(s.load)} kg${s.test?` <small>(test ${s.test==='pre'?'antes':'después'})</small>`:''}</td><td>${s.reps.length}</td><td>${fmt(s.best)}</td><td>${I?pctTxt(I)+' %':'—'}</td><td class="${s.vl>(s.cut||20)?'bad':''}">${Math.round(s.vl)}%</td><td>${ceTxt(E)}</td><td class="${F&&F.lv===3?'bad':''}">${F?F.name:'—'}</td><td>${Math.round(pw)} W</td></tr>`; }).join('')}</table>`:''}
+      ${(() => { const T = testsOf(a.id, ex, since); return T.length ? `<h3>Control de fatiga · carga de 1 m/s</h3>${testsTable(T.slice(-10))}` : ''; })()}
     </div>`;
   });
-  h += `<div class="foot">VMP: velocidad media propulsiva. 1RM estimado con la recta carga-velocidad (mejor rep de cada serie) y la velocidad mínima al 1RM de cada ejercicio. Potencia media propulsiva medida por el sensor TrakVBT.</div>`;
+  h += `<div class="foot"><b>Cómo se calcula.</b> % 1RM: con la VMP de la rep más rápida, por el perfil carga-velocidad del atleta o, si no hay, por ecuaciones generales (sentadilla completa y press de banca). CE (carácter del esfuerzo) = reps hechas (posibles), estimado desde la pérdida de velocidad. Fatiga de la serie: baja &lt; 10 %, moderada 10–20 %, alta hasta ~30 % (sentadilla) / ~35 % (banca), muy alta por encima. Test de 1 m/s: media de las 2 mejores reps con la misma carga; antes vs. su base y después vs. antes (umbrales orientativos).
+    ${refsHTML(['gb2010','sm2017','gb2017','rr2020','sm2011','pb2017','mann'])}</div>`;
+  h += `<div class="foot" style="margin-top:8px;border-top:0;padding-top:0">VMP: velocidad media propulsiva. Zonas de velocidad según la VMP de cada rep (Mann); su % 1RM es orientativo. 1RM estimado con la recta carga-velocidad (mejor rep de cada serie) y la velocidad mínima al 1RM de cada ejercicio. Potencia media propulsiva medida por el sensor TrakVBT.</div>`;
   $('rPage').innerHTML = h;
 }
 $('rClose').onclick = () => { $('report').hidden = true; };
+$('zone').onclick = () => {
+  const z = $('zref');
+  if (z.hidden) z.innerHTML = zoneTable() + '<div class="note">Zona según la velocidad media propulsiva de cada rep. Rangos generales del continuo fuerza-velocidad (Mann, 2016; Mann, Ivey y Sayers, 2015). El % 1RM es orientativo y cambia según el ejercicio y el atleta.</div>';
+  z.hidden = !z.hidden;
+};
 $('rRange').onchange = buildReport;
 $('rPrint').onclick = () => {
   try { window.print(); } catch(e){ alert('Para guardar el PDF abrí la app en Safari y usá Compartir › Imprimir.'); }
@@ -1252,15 +1526,24 @@ function renderSensor(){
   $('snSub').textContent = on ? (S.connected ? 'conectado' : 'sin conexión') : 'modo demo';
   const kv = (l, v) => `<div class="tile"><div class="label">${l}</div><div class="v" style="font-size:22px">${v}</div></div>`;
   $('snKv').innerHTML = on
-    ? kv('Batería', S.battery==null?'—':S.battery<0?'USB':`${S.battery}%`) + kv('Lecturas', S.hz?`${S.hz}<small>Hz</small>`:'—') + kv('Estado', S.sensorState===0?'Calibrando':S.sensorState===1?'Listo':'—') + kv('Firmware', S.fw||'—')
+    ? kv('Batería', batText() + (S.volt && S.battery>=0 ? ` <small>${String(S.volt.toFixed(2)).replace('.',',')} V</small>` : '')) + kv('Lecturas', S.hz?`${S.hz}<small>Hz</small>`:'—') + kv('Estado', S.sensorState===0?'Calibrando':S.sensorState===1?'Listo':'—') + kv('Firmware', S.fw||'—')
     : '<div class="empty" style="grid-column:1/-1">Estás viendo la app en modo demo. Conectate a la red del sensor y abrí http://trakvbt.local.</div>';
-  $('snCal').disabled = $('snRestart').disabled = !on || !S.connected;
+  $('snCal').disabled = $('snRestart').disabled = $('snOff').disabled = !on || !S.connected;
   const real = S.sets.filter(s=>!s.example).length, ath = S.athletes.filter(a=>!a.example).length;
   $('dataSub').textContent = `${ath} atletas · ${real} series`;
   $('clearEx').hidden = !S.sets.some(s=>s.example) && !S.athletes.some(a=>a.example);
 }
 function toastIn(id, t){ const el = $(id); if (!el) return; el.textContent = t; setTimeout(()=>{ if (el.textContent===t) el.textContent=''; }, 3500); }
 $('snCal').onclick = () => { startCal(); toastIn('snToast','Recalibrando: dejá la barra quieta'); };
+function powerOff(){
+  if (!confirm('¿Apagar el sensor? Para volver a prenderlo, tocá BOOT en la placa.')) return;
+  if (S.recording) endSet();
+  cmd('off');
+  S.sleeping = true;
+  showBanner('Sensor apagado. Para prenderlo, tocá BOOT en la placa y volvé a abrir la app.');
+}
+$('snOff').onclick = powerOff;
+$('pwr').onclick = powerOff;
 $('snRestart').onclick = () => { if (!confirm('¿Reiniciar el sensor? Tarda unos segundos en volver.')) return;
   fetch('/restart').catch(()=>{}); toastIn('snToast','Reiniciando…'); };
 
@@ -1495,14 +1778,15 @@ $('athlete').onchange = e => {
   if (e.target.value === '__new'){ e.target.value = S.athlete; athleteForm(null); return; }
   S.athlete = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie();
 };
-$('exercise').onchange = e => { S.exercise = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie(); };
+$('exercise').onchange = e => { S.exercise = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); sendCfg(); renderSerie(); };
+function sendCfg(){ cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}&ecc=${exo(S.exercise).ecc===false?0:1}`); }
 const setLoad = v => { S.load = Math.max(0, Math.min(500, Math.round(v*2)/2)); savePrefs(); renderSerie(); };
 $('loadUp').onclick = () => setLoad(S.load + 2.5);
 $('loadDn').onclick = () => setLoad(S.load - 2.5);
 $('load').onchange = e => { const v = parseFloat(e.target.value.replace(',','.')); if (!isNaN(v)) setLoad(v); else renderSerie(); };
 $('cut').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.cut = +b.dataset.v; if (S.liveSet && S.recording){ S.liveSet.cut = S.cut; cmd('cut', `&cut=${S.cut}`); } savePrefs(); renderSerie(); };
 $('go').onclick = () => S.recording ? endSet() : startSet();
-$('gap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.autoGap = +b.dataset.v; cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}`); savePrefs(); renderSerie(); };
+$('gap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.autoGap = +b.dataset.v; sendCfg(); savePrefs(); renderSerie(); };
 $('snd').onclick = () => { S.sound = !S.sound; $('snd').setAttribute('aria-pressed', String(S.sound)); savePrefs(); };
 $('snd').setAttribute('aria-pressed', String(S.sound));
 
@@ -1515,34 +1799,71 @@ const ICON = {
 // =====================================================================
 // Conexión con el sensor
 // =====================================================================
+let es = null, esOpenedAt = 0, esWatch = null;
 function connectSensor(){
   if (!('EventSource' in window)) return;
-  const es = new EventSource('/events');
+  if (es) { try { es.close(); } catch(e){} }
+  es = new EventSource('/events');
+  esOpenedAt = Date.now();
   es.addEventListener('rep', ev => { try { addRep(JSON.parse(ev.data)); } catch(e){} });
   es.addEventListener('status', ev => { try {
-    const d = JSON.parse(ev.data), wasCal = S.sensorState===0;
-    S.battery = d.bat; S.sensorState = d.state; S.cal = d.cal || 0; S.hz = d.hz; S.fw = d.fw; S.volt = d.v; showConn(true);
+    const d = JSON.parse(ev.data), wasCal = S.sensorState===0, wasLow = !!S.batLow;
+    S.lastStatus = Date.now();
+    S.battery = d.bat; S.chg = d.chg; S.batLow = !!d.low; S.sensorState = d.state; S.cal = d.cal || 0; S.hz = d.hz; S.fw = d.fw; S.volt = d.v; showConn(true);
     if (typeof d.cs === 'number') S.calSec = d.cs;
+    if (S.batLow && !wasLow) lowBattery();
     if (S.tab==='Serie') renderCal();
     if (S.tab==='Sensor') renderSensor();
   } catch(e){} });
+  es.addEventListener('lowbat', () => { if (!S.batLow){ S.batLow = true; lowBattery(); showConn(true); } });
   es.addEventListener('start', () => startSet(true));
   es.addEventListener('stop', () => endSet(true));
-  es.onopen = () => { showConn(true); cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}`); };
+  es.addEventListener('sleep', () => { if (S.recording) endSet(true); S.sleeping = true; S.battery = null;
+    showConn(false); renderCal();
+    showBanner('El sensor se apagó. Para prenderlo, tocá BOOT en la placa.'); });
+  es.onopen = () => { S.lastStatus = Date.now(); showConn(true); renderCal(); sendCfg(); };
   es.onerror = () => { showConn(false); if (S.tab==='Serie') renderCal(); };
+  // la placa manda su estado cada 1 s. Si deja de llegar (se apagó, se cortó el WiFi) se muestra
+  // desconectado y se vuelve a abrir la conexión cada 4 s: así, al prender la placa de nuevo,
+  // la app se reconecta sola (Safari a veces se queda esperando una conexión muerta para siempre).
+  if (!esWatch) esWatch = setInterval(() => {
+    const now = Date.now(), quiet = now - Math.max(S.lastStatus || 0, esOpenedAt);
+    if (S.connected && quiet > 5000){ showConn(false); if (S.tab==='Serie') renderCal(); }
+    if (!S.connected && now - esOpenedAt > 4000 && !document.hidden) connectSensor();
+  }, 1000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.source==='sensor' && !S.connected) connectSensor(); });
+function batText(){
+  if (S.battery == null) return '—';
+  if (S.battery < 0 || S.chg === -1) return 'USB';
+  if (S.chg === 2) return '🔋 Cargada';
+  if (S.chg === 1) return `⚡ ${S.battery}%`;
+  return `${S.battery}%`;
+}
+function batClass(){
+  if (S.battery == null || S.battery < 0) return 'neutral';
+  if (S.chg === 2) return 'live';
+  if (S.chg === 1) return 'demo';
+  return S.batLow || S.battery <= 15 ? 'off' : 'neutral';
+}
+function lowBattery(){
+  beep(440, 260, 3);
+  showBanner(`Batería baja (${S.battery}%). Cargá el sensor por USB: a los 5 % se apaga solo para cuidar la batería.`, true);
 }
 function showConn(on){
   const c = $('conn');
+  $('pwr').hidden = !(S.source === 'sensor' && on !== false);
+  if (on === true && S.sleeping){ S.sleeping = false; const bn = document.getElementById('banner'); bn && bn.remove(); }
   if (S.source === 'online'){ c.className='pill neutral'; c.innerHTML='<i></i>Online'; return; }
   if (S.source === 'demo'){ c.className='pill demo'; c.innerHTML='<i></i>Demo'; return; }
   S.connected = on !== false;
   c.className = on===false ? 'pill off' : 'pill live';
-  c.innerHTML = on===false ? '<i></i>Sin sensor' : '<i></i>Sensor';
+  c.innerHTML = on===false ? (S.sleeping ? '<i></i>Apagado' : '<i></i>Sin sensor') : '<i></i>Sensor';
   const b = $('bat');
-  if (S.battery != null){
+  if (on === false || S.battery == null) b.hidden = true;
+  else {
     b.hidden = false;
-    if (S.battery < 0){ b.className='pill neutral'; b.textContent='USB'; }
-    else { b.className='pill '+(S.battery<20?'off':'neutral'); b.textContent=`${S.battery}%`; }
+    b.className = 'pill ' + batClass(); b.textContent = batText();
   }
 }
 
