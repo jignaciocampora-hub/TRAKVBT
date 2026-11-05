@@ -321,6 +321,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
       <span>TRAK<b>VBT</b></span>
     </div>
     <div class="hright">
+      <span id="cloudPill" class="pill neutral" hidden></span>
       <span id="bat" class="pill neutral" hidden></span>
       <span id="conn" class="pill demo"><i></i>Demo</span>
       <button id="pwr" class="iconbtn" hidden aria-label="Apagar sensor" title="Apagar sensor">
@@ -525,6 +526,27 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
       </div>
     </section>
 
+    <section class="panel" id="cloudPanel">
+      <div class="phead"><h2>Nube</h2><span class="sub" id="cloudSub"></span></div>
+      <p class="note" style="margin-top:0">Con tu cuenta, cada serie y cada atleta se guardan solos en la nube apenas hay internet, y aparecen en TrakVBT online y en cualquier otro dispositivo donde entres.</p>
+      <div id="cloudCfgBox">
+        <label class="field"><span class="label">Project URL de Supabase</span><input class="txt" id="cloudUrl" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="https://xxxx.supabase.co"></label>
+        <label class="field"><span class="label">Publishable / anon key</span><input class="txt" id="cloudKey" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="sb_publishable_… o eyJ…"></label>
+        <div class="row"><button class="btn1" id="cloudCfgSave">Guardar proyecto</button></div>
+      </div>
+      <div id="cloudLoginBox" hidden>
+        <label class="field"><span class="label">Mail</span><input class="txt" id="cloudMail" type="email" autocomplete="username" autocapitalize="off"></label>
+        <label class="field"><span class="label">Clave</span><input class="txt" id="cloudPass" type="password" autocomplete="current-password"></label>
+        <div class="row"><button class="btn1" id="cloudLogin">Entrar</button><button class="btn2" id="cloudSignup">Crear cuenta</button></div>
+        <p class="note" id="cloudLoginErr" style="color:var(--bad)"></p>
+      </div>
+      <div id="cloudInBox" hidden>
+        <p class="note" id="cloudInfo" style="margin-top:0"></p>
+        <div class="row"><button class="btn1" id="cloudNow">Sincronizar ahora</button><button class="btn2" id="cloudOut">Cerrar sesión</button></div>
+      </div>
+      <p class="note"><a href="#" id="cloudCfgEdit" style="color:var(--muted)">Cambiar proyecto de Supabase</a> <span class="toast" id="cToast" role="status"></span></p>
+    </section>
+
     <section class="panel">
       <div class="phead"><h2>Datos</h2><span class="sub" id="dataSub"></span></div>
       <p class="note" style="margin-top:0" id="dataNote">Los atletas y las series se guardan en este teléfono. Exportá un respaldo de vez en cuando o para pasar los datos a TrakMov u otro dispositivo.</p>
@@ -633,6 +655,7 @@ const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:
 const saveAll = () => {
   const ok = store.set('trakvbt.athletes', S.athletes.filter(a=>!a.example)) && store.set('trakvbt.sets', S.sets.filter(s=>!s.example));
   if (!ok) toastIn('dToast','No hay espacio para guardar: exportá un respaldo');
+  if (typeof cloudSchedule === 'function' && !C.quiet) cloudSchedule();
 };
 const athName = id => (S.athletes.find(a=>a.id===id)||{}).name || 'Sin atleta';
 const athOf = id => S.athletes.find(a=>a.id===id);
@@ -1318,7 +1341,7 @@ function editSet(id){
     const k = $('esKind').value; if (k) s.test = k; else delete s.test;
     saveAll(); closeSheet(); renderAll();
   };
-  $('esDel').onclick = () => { if (!confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); saveAll(); closeSheet(); renderAll(); };
+  $('esDel').onclick = () => { if (!confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); if (cloudIn()) { C.tomb.sets.push(id); cSave(); } saveAll(); closeSheet(); renderAll(); };
 }
 document.addEventListener('click', e => { const r = e.target.closest('[data-set]'); if (r) editSet(r.dataset.set); });
 
@@ -1350,6 +1373,7 @@ function athleteForm(a){
   if (!isNew) $('afDel').onclick = () => {
     const n = S.sets.filter(s=>s.athlete===a.id).length;
     if (!confirm(`¿Borrar a ${a.name}${n?` y sus ${n} series`:''}?`)) return;
+    if (cloudIn()){ C.tomb.athletes.push(a.id); S.sets.filter(s=>s.athlete===a.id).forEach(s=>C.tomb.sets.push(s.id)); cSave(); }
     S.athletes = S.athletes.filter(x=>x.id!==a.id); S.sets = S.sets.filter(s=>s.athlete!==a.id);
     if (S.athlete===a.id) S.athlete=''; S.detail = null;
     saveAll(); savePrefs(); closeSheet(); fillAthleteSelects(); renderAll();
@@ -1596,7 +1620,161 @@ function renderSensor(){
   const real = S.sets.filter(s=>!s.example).length, ath = S.athletes.filter(a=>!a.example).length;
   $('dataSub').textContent = `${ath} atletas · ${real} series`;
   $('clearEx').hidden = !S.sets.some(s=>s.example) && !S.athletes.some(a=>a.example);
+  renderCloud();
 }
+// =====================================================================
+// Nube (Supabase): cuenta con mail y clave + sincronización automática
+// Cada atleta y cada serie es una fila (id, data, deleted, updated_at). Se suben las que cambiaron
+// (comparando una huella de su contenido) y se bajan las que otro dispositivo modificó después
+// de la última sincronización. Funciona igual desde la placa (si el celular tiene internet) y online.
+// =====================================================================
+// proyecto de Supabase de TrakVBT (datos públicos: la seguridad la dan las reglas de cada tabla)
+const CLOUD_DEFAULT = {url:'https://zhxekgiphzeohmpzlnii.supabase.co', key:'sb_publishable_gZEbIbbkeU9AAkSZw-50Zg_XKpMedeW'};
+const C = {
+  cfg: store.get('trakvbt.cloudCfg', null) || CLOUD_DEFAULT,
+  ses: store.get('trakvbt.cloudSes', null),
+  st: store.get('trakvbt.cloudState', null) || {pullS:'1970-01-01T00:00:00Z', pullA:'1970-01-01T00:00:00Z', hS:{}, hA:{}},
+  tomb: store.get('trakvbt.cloudTomb', null) || {sets:[], athletes:[]},
+  busy:false, status:'', err:'', last: store.get('trakvbt.cloudLast', 0), timer:null, quiet:false,
+};
+const cloudOn = () => !!(C.cfg && C.cfg.url && C.cfg.key);
+const cloudIn = () => cloudOn() && !!(C.ses && C.ses.refresh_token);
+function fnv(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36) + s.length.toString(36); }
+const recHash = o => fnv(JSON.stringify(o));
+function cSave(){ store.set('trakvbt.cloudSes', C.ses); store.set('trakvbt.cloudState', C.st); store.set('trakvbt.cloudTomb', C.tomb); store.set('trakvbt.cloudLast', C.last); }
+function cResetState(){ C.st = {pullS:'1970-01-01T00:00:00Z', pullA:'1970-01-01T00:00:00Z', hS:{}, hA:{}}; C.tomb = {sets:[], athletes:[]}; cSave(); }
+async function cFetch(path, opt={}, auth=true){
+  const h = {'apikey': C.cfg.key, 'Content-Type':'application/json', ...(opt.headers||{})};
+  if (auth){ await cToken(); h.Authorization = 'Bearer ' + C.ses.access_token; }
+  const r = await fetch(C.cfg.url.replace(/\/+$/,'') + path, {...opt, headers:h});
+  const t = await r.text();
+  let j = null; try { j = t ? JSON.parse(t) : null; } catch(e){}
+  if (!r.ok){ const e = new Error((j && (j.msg || j.message || j.error_description || j.error)) || ('Error ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+function setSes(j){
+  C.ses = {access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in||3600)*1000,
+           email: (j.user && j.user.email) || (C.ses && C.ses.email) || ''};
+  cSave();
+}
+async function cToken(){
+  if (C.ses && C.ses.access_token && Date.now() < (C.ses.expires_at||0) - 60000) return;
+  const j = await cFetch('/auth/v1/token?grant_type=refresh_token', {method:'POST', body: JSON.stringify({refresh_token: C.ses.refresh_token})}, false);
+  setSes(j);
+}
+const authMsg = e => /invalid login|invalid_grant|credentials/i.test(e.message) ? 'Mail o clave incorrectos'
+  : /not confirmed/i.test(e.message) ? 'Falta confirmar el mail: abrí el correo de Supabase y tocá el enlace'
+  : /already registered|already exists/i.test(e.message) ? 'Ese mail ya tiene cuenta: tocá Entrar'
+  : /password/i.test(e.message) ? 'La clave tiene que tener al menos 6 caracteres'
+  : e instanceof TypeError ? 'Sin internet: probá de nuevo con conexión' : e.message;
+
+async function cloudSync(manual){
+  if (!cloudIn() || C.busy) return;
+  if (!navigator.onLine){ C.status = 'offline'; renderCloud(); return; }
+  C.busy = true; C.err = ''; C.status = 'sync'; renderCloud();
+  try {
+    // 1) subir lo nuevo, lo modificado y lo borrado
+    const dirty = (list, H) => list.filter(x => !x.example && H[x.id] !== recHash(x));
+    const ath = dirty(S.athletes, C.st.hA), sets = dirty(S.sets, C.st.hS);
+    const rowsA = ath.map(a => ({id:a.id, data:a, deleted:false})).concat(C.tomb.athletes.map(id => ({id, data:{}, deleted:true})));
+    const rowsS = sets.map(s => ({id:s.id, athlete:s.athlete||null, time:s.time||null, data:s, deleted:false}))
+      .concat(C.tomb.sets.map(id => ({id, athlete:null, time:null, data:{}, deleted:true})));
+    for (const [tbl, rows] of [['athletes', rowsA], ['sets', rowsS]])
+      for (let i = 0; i < rows.length; i += 150)
+        await cFetch(`/rest/v1/${tbl}?on_conflict=id`, {method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(rows.slice(i, i+150))});
+    ath.forEach(a => C.st.hA[a.id] = recHash(a)); sets.forEach(s => C.st.hS[s.id] = recHash(s));
+    C.tomb.athletes.forEach(id => delete C.st.hA[id]); C.tomb.sets.forEach(id => delete C.st.hS[id]);
+    C.tomb = {sets:[], athletes:[]}; cSave();
+    // 2) bajar lo que cambió en otros dispositivos
+    let changed = false;
+    for (const [tbl, key, H, list] of [['athletes','pullA', C.st.hA, 'athletes'], ['sets','pullS', C.st.hS, 'sets']]){
+      for (let guard = 0; guard < 200; guard++){
+        const rows = await cFetch(`/rest/v1/${tbl}?select=id,data,deleted,updated_at&updated_at=gt.${encodeURIComponent(C.st[key])}&order=updated_at.asc&limit=500`, {method:'GET'});
+        if (!rows || !rows.length) break;
+        for (const r of rows){
+          const arr = S[list], i = arr.findIndex(x => x.id === r.id);
+          const localDirty = i >= 0 && H[r.id] !== undefined && recHash(arr[i]) !== H[r.id];
+          if (r.deleted){ if (i >= 0 && !localDirty){ arr.splice(i, 1); changed = true; } delete H[r.id]; }
+          else if (!localDirty && r.data && Object.keys(r.data).length){
+            const obj = list === 'sets' ? finishSet({...r.data, id:r.id}) : {...r.data, id:r.id};
+            if (i >= 0){ if (recHash(arr[i]) !== recHash(obj)){ arr[i] = obj; changed = true; } } else { arr.push(obj); changed = true; }
+            H[r.id] = recHash(obj);
+          }
+          C.st[key] = r.updated_at;
+        }
+        if (rows.length < 500) break;
+      }
+    }
+    C.last = Date.now(); C.status = 'ok'; cSave();
+    if (changed){
+      S.sets.sort((a,b) => (a.time||0) - (b.time||0));
+      C.quiet = true; saveAll(); C.quiet = false;
+      if (S.athletes.some(a=>!a.example)){ S.athletes = S.athletes.filter(a=>!a.example); S.sets = S.sets.filter(s=>!s.example); }
+      fillAthleteSelects(); if (!S.recording) renderAll();
+    }
+    if (manual) toastIn('cToast', 'Sincronizado');
+  } catch(e){
+    if (e.status === 401 || e.status === 400 && /refresh/i.test(e.message)){ C.ses = null; cSave(); C.status = 'login'; C.err = 'La sesión venció: volvé a entrar'; }
+    else if (e instanceof TypeError){ C.status = 'offline'; }
+    else { C.status = 'error'; C.err = e.message; }
+  } finally { C.busy = false; renderCloud(); }
+}
+function cloudSchedule(ms=4000){ if (!cloudIn()) return; clearTimeout(C.timer); C.timer = setTimeout(() => cloudSync(false), ms); }
+setInterval(() => { if (cloudIn() && !S.recording) cloudSync(false); }, 90000);
+window.addEventListener('online', () => cloudSchedule(1000));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) cloudSchedule(1500); });
+
+function renderCloud(){
+  const pill = $('cloudPill');
+  if (pill){
+    pill.hidden = !cloudIn();
+    const map = {sync:['neutral','Sincronizando…'], ok:['live','Nube ✓'], offline:['demo','Sin internet'], error:['off','Nube: error'], login:['off','Nube: entrar']};
+    const [cls, txt] = map[C.status] || ['neutral','Nube'];
+    pill.className = 'pill ' + cls; pill.textContent = txt;
+  }
+  if (!$('cloudPanel')) return;
+  $('cloudCfgBox').hidden = cloudOn() && !C.editCfg;
+  $('cloudLoginBox').hidden = !cloudOn() || cloudIn() || C.editCfg;
+  $('cloudInBox').hidden = !cloudIn();
+  $('cloudUrl').value = C.cfg.url || ''; 
+  $('cloudSub').textContent = cloudIn() ? (C.ses.email || 'conectado') : cloudOn() ? 'sin sesión' : 'sin configurar';
+  if (cloudIn()){
+    const st = {sync:'Sincronizando…', ok:'Todo sincronizado', offline:'Sin internet: se sincroniza solo cuando haya conexión', error:'No se pudo sincronizar', login:'Volvé a entrar'}[C.status] || 'Lista para sincronizar';
+    $('cloudInfo').innerHTML = `<b>${esc(st)}</b>${C.last ? ` · última vez ${new Date(C.last).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}` : ''}${C.err ? `<br><span style="color:var(--bad)">${esc(C.err)}</span>` : ''}`;
+  }
+  $('cloudLoginErr').textContent = !cloudIn() && C.err ? C.err : '';
+}
+async function cloudAuth(kind){
+  const email = $('cloudMail').value.trim(), pass = $('cloudPass').value;
+  if (!/^\S+@\S+\.\S+$/.test(email)){ C.err = 'Escribí un mail válido'; renderCloud(); return; }
+  if (pass.length < 6){ C.err = 'La clave tiene que tener al menos 6 caracteres'; renderCloud(); return; }
+  C.err = ''; $('cloudLogin').disabled = $('cloudSignup').disabled = true;
+  try {
+    if (kind === 'signup'){
+      const j = await cFetch('/auth/v1/signup', {method:'POST', body: JSON.stringify({email, password:pass})}, false);
+      if (j && j.access_token) setSes(j);
+      else { C.err = 'Te mandamos un mail para confirmar la cuenta. Confirmala y después tocá Entrar.'; renderCloud(); return; }
+    } else {
+      const j = await cFetch('/auth/v1/token?grant_type=password', {method:'POST', body: JSON.stringify({email, password:pass})}, false);
+      setSes(j);
+    }
+    if (!C.ses.email) C.ses.email = email;
+    cResetState(); $('cloudPass').value = '';
+    renderCloud(); cloudSync(true);
+  } catch(e){ C.err = authMsg(e); renderCloud(); }
+  finally { $('cloudLogin').disabled = $('cloudSignup').disabled = false; }
+}
+$('cloudLogin').onclick = () => cloudAuth('login');
+$('cloudSignup').onclick = () => cloudAuth('signup');
+$('cloudNow').onclick = () => cloudSync(true);
+$('cloudOut').onclick = () => { if (!confirm('¿Cerrar sesión en la nube? Los datos siguen guardados en este teléfono y en la nube.')) return;
+  C.ses = null; C.status = ''; cResetState(); renderCloud(); };
+$('cloudCfgSave').onclick = () => {
+  const url = $('cloudUrl').value.trim(), key = $('cloudKey').value.trim();
+  if (!/^https:\/\/[^\s]+$/.test(url) || key.length < 20){ toastIn('cToast', 'Revisá la Project URL y la key'); return; }
+  C.cfg = {url, key}; store.set('trakvbt.cloudCfg', C.cfg); C.editCfg = false; $('cloudKey').value = ''; renderCloud();
+};
+$('cloudCfgEdit').onclick = e => { e.preventDefault(); C.editCfg = !C.editCfg; renderCloud(); };
 function toastIn(id, t){ const el = $(id); if (!el) return; el.textContent = t; setTimeout(()=>{ if (el.textContent===t) el.textContent=''; }, 3500); }
 $('snCal').onclick = () => { startCal(); toastIn('snToast','Recalibrando: dejá la barra quieta'); };
 function powerOff(){
@@ -1760,8 +1938,8 @@ $('dCsv').onclick = () => {
 };
 $('clearEx').onclick = () => { S.sets = S.sets.filter(s=>!s.example); S.athletes = S.athletes.filter(a=>!a.example); S.demo = false;
   fillAthleteSelects(); renderAll(); toastIn('dToast','Ejemplos quitados'); };
-$('dWipe').onclick = () => { if (!confirm('¿Borrar TODOS los atletas y series de este teléfono? Exportá un respaldo antes si los querés conservar.')) return;
-  S.sets = []; S.athletes = []; S.athlete = ''; saveAll(); savePrefs(); fillAthleteSelects(); renderAll(); toastIn('dToast','Datos borrados'); };
+$('dWipe').onclick = () => { if (!confirm(cloudIn() ? '¿Borrar los datos de este teléfono? En la nube quedan guardados y vuelven a bajar mientras tengas la sesión abierta.' : '¿Borrar TODOS los atletas y series de este teléfono? Exportá un respaldo antes si los querés conservar.')) return;
+  S.sets = []; S.athletes = []; S.athlete = ''; cResetState(); C.quiet = true; saveAll(); C.quiet = false; savePrefs(); fillAthleteSelects(); renderAll(); toastIn('dToast','Datos borrados de este teléfono'); };
 
 // ---------- Red WiFi del sensor ----------
 let pickSsid = null;
@@ -1955,6 +2133,7 @@ else { seedDemo(); if (!S.athlete) S.athlete = 'd1'; }
 fillAthleteSelects();
 go(S.online ? 'Atletas' : 'Serie');
 if (S.online){ receiveFromHash(); window.addEventListener('hashchange', receiveFromHash); }
+renderCloud(); if (S.source !== 'demo') cloudSchedule(1500);
 })();
 </script>
 </body>
