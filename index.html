@@ -62,6 +62,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brand svg{width:32px;height:32px;flex:none}
 .mark-bg{fill:#0E1A33}
 .hright{margin-left:auto;display:flex;gap:8px;align-items:center}
+@media (max-width:520px){body.pillsfull .brand span{display:none} body.pillsfull .hright{gap:6px} body.pillsfull .pill{padding:4px 8px} body.pillsfull #cloudPill.live{display:none}}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
 .pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
 .pill.demo{background:var(--warn-soft);color:var(--warn)}
@@ -240,6 +241,30 @@ button.zone{border:0;font-family:inherit;cursor:pointer}
 .pwbox{display:grid;gap:8px;margin-top:10px;padding:12px;border-radius:12px;background:var(--sunk)}
 .pwbox input{background:var(--surface)}
 .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+body.enchost #conn,body.enchost #bat,body.enchost #pwr,body.enchost #calCard,body.enchost #snPanel,body.enchost #wifiPanel,body.enchost #measField,body.enchost #encScan,body.enchost .encman{display:none!important}
+.pushtbl{min-width:600px}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
+.pushtbl tr>:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+.pushtbl tr>:last-child:has(.repx){position:sticky;right:0;background:var(--surface);z-index:1}
+.pushwrap{overflow-x:auto;margin:0 -2px}.pushhint{font-size:12px;color:var(--muted);margin:-4px 0 0}
+.mini tr.dropped td{opacity:.4;text-decoration:line-through}
+.mini tr.dropped td:last-child{opacity:1;text-decoration:none}
+.repx{border:0;background:var(--sunk);color:var(--muted);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer}
+.mini tr.dropped .repx{color:var(--accent, #6e93ff)}
+.scrbox{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:10px}
+.scrbox .scrbig{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.scrbox .scrbig b{font:700 46px/1 var(--f-num);font-variant-numeric:tabular-nums}
+.scrbox .scrbig small{color:var(--muted);font-size:15px}
+.scrgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.scrgrid div{background:var(--sunk);border-radius:10px;padding:8px 10px}
+.scrgrid span{display:block;color:var(--muted);font-size:12px}
+.scrgrid b{font-size:18px;font-variant-numeric:tabular-nums}
+.scrk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.scrk input{width:90px}
+.cmpbox{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px}
+.cmpbox .cmpnow{font-size:14px}
+.cmpbox .cmpnow b{font-variant-numeric:tabular-nums}
+.cmpbox .cmpsum{font-size:13px;color:var(--muted)}
+.srcchip{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--line);color:var(--muted);vertical-align:middle;margin-left:6px}
 @media (max-width:460px){.kv{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Hoja (modal) */
@@ -323,6 +348,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
     <div class="hright">
       <span id="cloudPill" class="pill neutral" hidden></span>
       <span id="bat" class="pill neutral" hidden></span>
+      <span id="encPill" class="pill neutral" hidden><i></i>Encoder</span>
       <span id="conn" class="pill demo"><i></i>Demo</span>
       <button id="pwr" class="iconbtn" hidden aria-label="Apagar sensor" title="Apagar sensor">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>
@@ -369,9 +395,13 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
                 <input id="load" inputmode="decimal" aria-label="Carga en kg">
                 <button id="loadUp" aria-label="Subir 2,5 kg">+</button>
               </div></div>
-            <div class="field"><span class="label" id="cutLbl">Corte de pérdida</span>
+            <div class="field" id="cutField"><span class="label" id="cutLbl">Corte de pérdida</span>
               <div class="seg" id="cut" role="group" aria-labelledby="cutLbl">
                 <button data-v="10">10%</button><button data-v="20">20%</button><button data-v="30">30%</button>
+              </div></div>
+            <div class="field" id="ptField" hidden><span class="label" id="ptLbl">Empujes por serie (se guarda sola al llegar)</span>
+              <div class="seg" id="pushTarget" role="group" aria-labelledby="ptLbl">
+                <button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="0">Libre</button>
               </div></div>
             <div class="field" style="grid-column:1/-1"><span class="label" id="gapLbl">Fin automático de la serie (sin reps durante…)</span>
               <div class="seg" id="gap" role="group" aria-labelledby="gapLbl">
@@ -382,6 +412,11 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
                 <button data-v="">Entrenamiento</button><button data-v="pre">Test 1 m/s · antes</button><button data-v="post">Test 1 m/s · después</button>
               </div>
               <div class="testhint" id="testHint" hidden></div></div>
+            <div class="field" style="grid-column:1/-1" id="measField" hidden><span class="label" id="measLbl">Mide con</span>
+              <div class="seg" id="meas" role="group" aria-labelledby="measLbl">
+                <button data-v="imu">Sensor</button><button data-v="enc">Encoder</button><button data-v="both">Los dos</button>
+              </div>
+              <div class="testhint" id="measHint" hidden></div></div>
           </div>
         </section>
 
@@ -420,6 +455,8 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
             <span class="label">Curva de velocidad · última rep</span>
             <svg id="curve" class="chart" viewBox="0 0 340 90" role="img" aria-label="Velocidad durante la última repetición"></svg>
           </div>
+          <div class="cmpbox" id="cmpBox" hidden></div>
+          <div class="scrbox" id="scrBox" hidden></div>
           <div id="alert" class="alert info" hidden></div>
         </section>
 
@@ -508,6 +545,42 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
         <span class="toast" id="snToast" role="status"></span>
       </div>
       <p class="note">Recalibrar: dejá la barra quieta 1 segundo. Reiniciar: equivale a tocar RST en la placa. Apagar: la placa queda dormida y casi no gasta batería; para prenderla, tocá BOOT. También se apaga sola sin uso (10 min, o 30 min con la app abierta; nunca mientras está enchufada al USB), y manteniendo BOOT 3 segundos.</p>
+    </section>
+
+    <section class="panel" id="encPanel">
+      <div class="phead"><h2>Encoder lineal</h2><span class="sub" id="encSub"></span></div>
+      <div class="kv" id="encKv"></div>
+      <div class="row">
+        <button class="btn1" id="encScan">Buscar encoder</button>
+        <button class="btn2" id="encZero">Poner en cero</button>
+        <a class="btn2" id="encPage" href="#" target="_blank" rel="noopener" hidden>Abrir página del encoder</a>
+        <span class="toast" id="encToast" role="status"></span>
+      </div>
+      <details class="encman" style="margin-top:10px"><summary class="note" style="cursor:pointer">Escribir la dirección a mano</summary>
+        <div class="row"><input class="txt" id="encAddr" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="192.168.4.2" style="max-width:220px"><button class="btn2" id="encAddrGo">Conectar</button></div>
+      </details>
+      <p class="note" id="encHelp">Para que la app lo encuentre, el encoder tiene que estar en la misma red que este sensor. En la página del encoder, sección Red WiFi, escribí la red del sensor (la que muestra la pantalla de la placa, clave trakvbt1) y tocá Guardar. Después tocá <b>Buscar encoder</b> acá.</p>
+    </section>
+
+    <section class="panel" id="scrPanel" hidden>
+      <div class="phead"><h2>Pantalla del sensor</h2><span class="sub" id="scrSub"></span></div>
+      <p class="note">Usá <b>Sin pantalla</b> si la placa va dentro de una caja cerrada o tiene la pantalla rota: la luz queda siempre apagada y ahorra batería. Todo se maneja desde esta app; la luz de color de la placa sigue indicando el estado. Se guarda aunque la apagues.</p>
+      <div class="row">
+        <button class="btn2" id="scrOn">Con pantalla</button>
+        <button class="btn2" id="scrOff">Sin pantalla</button>
+        <span class="toast" id="scrToast" role="status"></span>
+      </div>
+    </section>
+
+    <section class="panel" id="fwPanel" hidden>
+      <div class="phead"><h2>Actualizar firmware</h2><span class="sub" id="fwSub"></span></div>
+      <p class="note">Elegí el archivo <b>.bin</b> de la versión nueva y tocá Actualizar. No apagues el sensor mientras se carga: tarda menos de un minuto y después se reinicia solo.</p>
+      <div class="row">
+        <input type="file" id="fwFile" accept=".bin,application/octet-stream" style="max-width:100%">
+        <button class="btn1" id="fwGo">Actualizar</button>
+      </div>
+      <div class="bar" id="fwBarW" hidden style="height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:10px"><i id="fwBar" style="display:block;height:100%;width:0;background:var(--accent)"></i></div>
+      <span class="toast" id="fwToast" role="status"></span>
     </section>
 
     <section class="panel" id="wifiPanel" hidden>
@@ -614,6 +687,8 @@ const EXERCISES = [ // MVT = velocidad mínima al 1RM (m/s), referencias habitua
   {id:'ht', name:'Hip thrust', mvt:0.25, ecc:false},
   {id:'mp', name:'Press militar', mvt:0.20, ecc:false},
   {id:'pc', name:'Cargada de potencia', mvt:0.80, ecc:false},
+  // push: máquina de scrum con resorte. Se mide con el encoder: compresión, arranque y fuerza (con la constante del resorte)
+  {id:'scr', name:'Scrum (máquina con resorte)', mvt:0.10, ecc:false, push:true},
 ];
 const ZONES = [ // zonas de entrenamiento por velocidad media
   // rangos del continuo fuerza-velocidad (Mann); % 1RM y objetivo: orientativos, varían según el ejercicio
@@ -649,9 +724,12 @@ const S = {
   calSec:null, calLocal:0, onlineUrl:'', online:false,
   source:'demo', sound:true, battery:null, sensorState:null, cal:0, hz:null, fw:null, volt:null, connected:false,
   tab:'Serie', detail:null, pgAth:'', pgEx:'sq', setKind:'',
+  measure:'imu', encAddr:'',          // con qué se mide la serie: sensor (imu), encoder (enc) o los dos (both)
+  springK:0,                          // máquina de scrum: kg por cm de compresión del resorte (0 = sin calibrar)
+  pushTarget:4,                       // máquina de scrum: empujes por serie (0 = libre); al llegar se guarda la serie
 };
 Object.assign(S, store.get('trakvbt.prefs', {}));
-const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl});
+const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl, measure:S.measure, encAddr:S.encAddr, springK:S.springK, pushTarget:S.pushTarget});
 const saveAll = () => {
   const ok = store.set('trakvbt.athletes', S.athletes.filter(a=>!a.example)) && store.set('trakvbt.sets', S.sets.filter(s=>!s.example));
   if (!ok) toastIn('dToast','No hay espacio para guardar: exportá un respaldo');
@@ -952,6 +1030,7 @@ function startSet(fromSensor){
   S.liveSet = {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut};
   if (S.athlete && bwAt(S.athlete)) S.liveSet.bw = bwAt(S.athlete);
   if (S.setKind) S.liveSet.test = S.setKind;
+  if (S.source === 'sensor' && S.measure !== 'imu') S.liveSet.src = S.measure;
   S.liveId = uid('s');
   try { actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); } catch(e){}
   try { navigator.wakeLock && navigator.wakeLock.request('screen').then(w=>wake=w).catch(()=>{}); } catch(e){}
@@ -993,7 +1072,16 @@ function addRep(rep){ // punto de entrada de datos reales: lo llama también el 
   store.set('trakvbt.live', {id:S.liveId, ...S.liveSet, reps:S.reps, time:S.t0});
   const best = Math.max(...S.reps.map(r=>r.v));
   const vl = (1 - rep.v/best)*100;
-  if (S.reps.length > 1 && vl > S.liveSet.cut) beep(520, 220, 3); else beep(1046, 70, 1);
+  const pushEx = !!exo(S.liveSet.exercise).push;
+  if (!pushEx && S.reps.length > 1 && vl > S.liveSet.cut) beep(520, 220, 3); else beep(1046, 70, 1);
+  // máquina de scrum: al llegar a los empujes pedidos, la serie se guarda sola
+  if (pushEx && S.pushTarget && S.reps.length >= S.pushTarget){
+    const n = S.reps.length; endSet();
+    autoNote = `Serie guardada: ${n} empujes. El próximo empuje arranca una serie nueva.`;
+    beep(1318, 90, 2);
+    if (S.tab === 'Serie') renderSerie();
+    return;
+  }
   if (S.tab === 'Serie') renderSerie(true);
 }
 window.trakvbtRep = addRep;
@@ -1039,9 +1127,17 @@ function renderSerie(newRep){
     shown = last || null;
   }
   const reps = shown ? shown.reps : [];
-  const load = shown ? shown.load : S.load, cut = shown ? (shown.cut||S.cut) : S.cut;
+  const isPushEx = !!exo(shown ? shown.exercise : S.exercise).push;
+  // máquina de scrum: no hay corte por pérdida de velocidad (el jugador hace sus N empujes)
+  const load = shown ? shown.load : S.load, cut = isPushEx ? 999 : (shown ? (shown.cut||S.cut) : S.cut);
+  $('cutField').hidden = isPushEx; $('ptField').hidden = !isPushEx;
+  // % 1RM, reps en recámara y fatiga por pérdida de velocidad no tienen sentido en la máquina de scrum
+  $('sci').hidden = isPushEx; $('sciMore').hidden = isPushEx; if (isPushEx) $('sciRef').hidden = true;
+  [...$('pushTarget').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.pushTarget)));
 
-  $('who').innerHTML = `${esc(athName(S.athlete))} <span>· ${ex.name} · ${kg(load)} kg</span>`;
+  const srcOf = shown && shown.src ? shown.src : (S.recording && S.source==='sensor' ? S.measure : null);
+  const srcTxt = srcOf === 'enc' ? 'Encoder' : srcOf === 'both' ? 'Encoder + sensor' : '';
+  $('who').innerHTML = `${esc(athName(S.athlete))} <span>· ${ex.name} · ${kg(load)} kg</span>${srcTxt?`<span class="srcchip">${srcTxt}</span>`:''}`;
   $('setState').textContent = S.recording ? 'Grabando' : shown ? (shown.example ? 'Serie de ejemplo' : 'Última serie') : 'Lista para empezar';
 
   const last = reps[reps.length-1];
@@ -1079,6 +1175,9 @@ function renderSerie(newRep){
     renderSci(null, [], 0, 0);
   }
   renderAlert(reps, vl, cut, best, shown);
+  renderCmp(reps, shown);
+  renderScrum(reps, shown);
+  renderMeas();
   renderCal();
 
   $('go').className = 'go' + (S.recording ? ' stop' : '');
@@ -1261,8 +1360,10 @@ function drawReps(reps, best, cut){
       s += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${y(0)-y(r.v)}" rx="4" fill="${col}"/>`;
       s += `<text class="vlab" x="${x+bw/2}" y="${y(r.v)-5}" text-anchor="middle">${fmt(r.v)}</text>`;
     });
-    s += `<line x1="${L}" x2="${W-R}" y1="${y(cv)}" y2="${y(cv)}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-    s += `<text x="${W-R}" y="${y(cv)-5}" text-anchor="end" style="fill:var(--bad)">corte −${cut}%</text>`;
+    if (cut < 100){
+      s += `<line x1="${L}" x2="${W-R}" y1="${y(cv)}" y2="${y(cv)}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+      s += `<text x="${W-R}" y="${y(cv)-5}" text-anchor="end" style="fill:var(--bad)">corte −${cut}%</text>`;
+    }
   } else s += `<text x="${(W+L)/2}" y="${H/2}" text-anchor="middle" style="font-size:13px">Las repeticiones aparecen acá</text>`;
   for (let i=0;i<n;i++) s += `<text x="${L+slot*i+slot/2}" y="${H-7}" text-anchor="middle">${i+1}</text>`;
   $('repChart').innerHTML = s;
@@ -1304,6 +1405,16 @@ function drawLiveProfile(){
 }
 function setRow(s, showAth){
   const e = exo(s.exercise), hh = new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if (e.push){   // máquina de scrum: avance, arranque y velocidad del mejor empuje
+    const k = S.springK > 0 ? S.springK : 0;
+    const mm = r => has(r.pmax) ? r.pmax : r.rom*1000;
+    const bestP = s.reps.reduce((a,r)=> !a || mm(r) > mm(a) ? r : a, null);
+    const t1 = s.reps.map(r=>r.t10).filter(x=>has(x) && x >= 0);
+    const vpk = Math.max(...s.reps.map(r=>r.vp||0));
+    return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
+      <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b><br>${s.reps.length} empujes · máx. ${bestP?fmt(mm(bestP)/10,1)+' cm'+(k?` (${fmt(mm(bestP)/10*k,0)} kg)`:''):'—'}${t1.length?` · 1 cm en ${fmt(Math.min(...t1)*1000,0)} ms`:''} · v pico ${fmt(vpk)} m/s · ${hh}</div>
+      <div class="vlp ok">›</div></div>`;
+  }
   return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
     <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b>${s.test?`<span class="tag test">TEST 1 m/s ${s.test==='pre'?'ANTES':'DESPUÉS'}</span>`:''}${s.example?'<span class="tag">EJEMPLO</span>':''}<br>${s.reps.length} reps · mejor ${fmt(s.best)} m/s${(I=>I?` · ${pctTxt(I)} % 1RM`:'')(intensity(s.athlete, s.exercise, s.load, s.best))}${(E=>E?` · CE ${ceTxt(E)}`:'')(effort(s))} · ${hh}</div>
     <div class="vlp ${s.vl>(s.cut||20)?'bad':'ok'}">−${Math.round(s.vl)}%</div></div>`;
@@ -1321,27 +1432,63 @@ function drawTodaySets(){
 function openSheet(html){ $('sheetCard').innerHTML = html; $('sheet').hidden = false; }
 function closeSheet(){ $('sheet').hidden = true; }
 $('sheet').onclick = e => { if (e.target === $('sheet')) closeSheet(); };
+// tabla completa de una serie de la máquina de scrum (todo lo que mide cada empuje)
+function pushTable(s, editable){
+  const k = S.springK > 0 ? S.springK : 0;
+  const ms = x => has(x) && x >= 0 ? fmt(x*1000,0) : '—';
+  const n1 = (x, d=1) => has(x) ? fmt(x, d) : '—';
+  const rows = s.reps.map((r,i) => {
+    const mm = has(r.pmax) ? r.pmax : r.rom*1000;
+    return `<tr data-i="${i}"><td>${i+1}</td><td>${fmt(mm/10,1)}${k?`<br><small>${fmt(mm/10*k,0)} kg</small>`:''}</td><td>${ms(r.t10)}</td><td>${ms(r.t20)}</td><td>${ms(r.t50)}</td>
+      <td>${fmt(r.vp)}</td><td>${fmt(has(r.vm)?r.vm:r.v)}</td><td>${n1(r.apk)}</td><td>${n1(r.am)}</td><td>${has(r.rfd)?fmt((k?r.rfd/10*k:r.rfd/10),0):'—'}</td>
+      ${editable?`<td><button type="button" class="repx" data-x="${i}" aria-label="Quitar empuje ${i+1}">✕</button></td>`:''}</tr>`;
+  }).join('');
+  return `<div class="pushwrap"><table class="mini pushtbl" ${editable?'id="esReps"':''}>
+    <tr><th>#</th><th>Avance cm</th><th>1 cm ms</th><th>2 cm ms</th><th>5 cm ms</th><th>V pico m/s</th><th>V media m/s</th><th>Acel. pico m/s²</th><th>Acel. media m/s²</th><th>Tasa 50 ms ${k?'kg/s':'cm/s'}</th>${editable?'<th></th>':''}</tr>
+    ${rows}</table></div><p class="pushhint">Deslizá la tabla hacia los costados para ver todo.</p>`;
+}
 function editSet(id){
   const s = S.sets.find(x=>x.id===id); if (!s) return;
   const opts = `<option value="">Sin atleta</option>` + S.athletes.map(a=>`<option value="${a.id}" ${a.id===s.athlete?'selected':''}>${esc(a.name)}</option>`).join('');
   const exs = EXERCISES.map(e=>`<option value="${e.id}" ${e.id===s.exercise?'selected':''}>${e.name}</option>`).join('');
+  const isPush = !!exo(s.exercise).push;
+  const drop = new Set();   // reps marcadas para quitar
   openSheet(`<h3>Editar serie</h3>
-    <div class="note" style="margin:0">${dLong(s.time)} · ${s.reps.length} reps · mejor ${fmt(s.best)} m/s</div>
+    <div class="note" style="margin:0">${dLong(s.time)} · ${s.reps.length} ${isPush?'empujes':'reps'}${isPush?'':` · mejor ${fmt(s.best)} m/s`}</div>
     <label class="field"><span class="label">Atleta</span><select class="sel" id="esAth">${opts}</select></label>
     <label class="field"><span class="label">Ejercicio</span><select class="sel" id="esEx">${exs}</select></label>
     <label class="field"><span class="label">Carga (kg)</span><input class="txt" id="esLoad" inputmode="decimal" value="${kg(s.load)}"></label>
     <label class="field"><span class="label">Tipo de serie</span><select class="sel" id="esKind"><option value="">Entrenamiento</option><option value="pre" ${s.test==='pre'?'selected':''}>Test 1 m/s · antes</option><option value="post" ${s.test==='post'?'selected':''}>Test 1 m/s · después</option></select></label>
-    <table class="mini"><tr><th>Rep</th><th>VMP</th><th>Pico</th><th>Rec.</th><th>Pot.</th></tr>
-      ${s.reps.map((r,i)=>`<tr><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(sysMass(s),r))} W</td></tr>`).join('')}</table>
+    <p class="note" style="margin:0">Tocá <b>✕</b> en ${isPush?'los empujes que no quieras (mal tomados, de prueba)':'las reps que no quieras (mal tomadas, de prueba)'} y después <b>Guardar</b>${isPush?'.':': se recalculan la mejor, la media y la pérdida.'}</p>
+    ${isPush ? pushTable(s, true) : `<table class="mini" id="esReps"><tr><th>Rep</th><th>VMP</th><th>Pico</th><th>Rec.</th><th>Pot.</th><th></th></tr>
+      ${s.reps.map((r,i)=>`<tr data-i="${i}"><td>${i+1}</td><td>${fmt(r.v)}</td><td>${fmt(r.vp)}</td><td>${Math.round(r.rom*100)} cm</td><td>${Math.round(power(sysMass(s),r))} W</td><td><button type="button" class="repx" data-x="${i}" aria-label="Quitar rep ${i+1}">✕</button></td></tr>`).join('')}</table>`}
     <div class="row"><button class="btn1" id="esSave">Guardar</button><button class="btn2" id="esCancel">Cancelar</button><button class="btn2 danger" id="esDel" style="margin-left:auto">Borrar serie</button></div>`);
   $('esCancel').onclick = closeSheet;
+  $('esReps').onclick = e => {
+    const b = e.target.closest('[data-x]'); if (!b) return;
+    const i = +b.dataset.x, tr = b.closest('tr');
+    if (drop.has(i)) drop.delete(i); else drop.add(i);
+    tr.classList.toggle('dropped', drop.has(i)); b.textContent = drop.has(i) ? '↺' : '✕';
+    b.setAttribute('aria-label', (drop.has(i) ? 'Volver a poner rep ' : 'Quitar rep ') + (i+1));
+    $('esSave').textContent = drop.size ? `Guardar (quitar ${drop.size})` : 'Guardar';
+  };
   $('esSave').onclick = () => {
+    if (drop.size && drop.size >= s.reps.length){
+      if (!confirm('Quitaste todas las reps: ¿borrar la serie entera?')) return;
+      $('esDel').onclick(true); return;
+    }
     const l = parseFloat($('esLoad').value.replace(',','.'));
     s.athlete = $('esAth').value; s.exercise = $('esEx').value; if (!isNaN(l) && l >= 0) s.load = l;
     const k = $('esKind').value; if (k) s.test = k; else delete s.test;
+    if (drop.size){
+      s.reps = s.reps.filter((r,i) => !drop.has(i));
+      s.reps.forEach((r,i) => { r.n = i+1; });
+      finishSet(s);
+      s.edited = Date.now();
+    }
     saveAll(); closeSheet(); renderAll();
   };
-  $('esDel').onclick = () => { if (!confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); if (cloudIn()) { C.tomb.sets.push(id); cSave(); } saveAll(); closeSheet(); renderAll(); };
+  $('esDel').onclick = (sure) => { if (sure !== true && !confirm('¿Borrar esta serie?')) return; S.sets = S.sets.filter(x=>x.id!==id); if (cloudIn()) { C.tomb.sets.push(id); cSave(); } saveAll(); closeSheet(); renderAll(); };
 }
 document.addEventListener('click', e => { const r = e.target.closest('[data-set]'); if (r) editSet(r.dataset.set); });
 
@@ -1603,7 +1750,7 @@ $('rPrint').onclick = () => {
 // =====================================================================
 function renderSensor(){
   const on = S.source === 'sensor';
-  $('snH1').textContent = S.online ? 'Datos' : 'Sensor';
+  $('snH1').textContent = S.online ? 'Datos' : S.encHost ? 'Encoder' : 'Sensor';
   $('snPanel').hidden = S.online;
   $('sendOnline').hidden = !on;
   $('pasteRow').hidden = !S.online;
@@ -1620,6 +1767,16 @@ function renderSensor(){
   const real = S.sets.filter(s=>!s.example).length, ath = S.athletes.filter(a=>!a.example).length;
   $('dataSub').textContent = `${ath} atletas · ${real} series`;
   $('clearEx').hidden = !S.sets.some(s=>s.example) && !S.athletes.some(a=>a.example);
+  $('encPanel').hidden = !on;
+  $('fwPanel').hidden = !on || !!S.encHost;
+  $('scrPanel').hidden = !on || !!S.encHost || S.noscr === undefined;
+  if (S.noscr !== undefined) {
+    $('scrSub').textContent = S.noscr ? 'sin pantalla' : 'con pantalla';
+    $('scrOn').className = S.noscr ? 'btn2' : 'btn1';
+    $('scrOff').className = S.noscr ? 'btn1' : 'btn2';
+    $('scrOn').disabled = $('scrOff').disabled = !S.connected;
+  }
+  if (on) renderEnc();
   renderCloud();
 }
 // =====================================================================
@@ -1910,13 +2067,18 @@ function showBanner(t, bad){
 }
 function csv(){
   const rows = [['fecha','hora','atleta','puesto','ejercicio','carga_kg','serie','rep','v_media_prop_ms','v_media_ms','v_pico_ms','recorrido_cm','duracion_s',
-    'potencia_media_w','potencia_pico_w','fuerza_media_n','v_excentrica_ms','tut_s','perdida_pct']];
+    'potencia_media_w','potencia_pico_w','fuerza_media_n','v_excentrica_ms','tut_s','perdida_pct','medido_con','v_comparacion_ms',
+    'empuje_avance_cm','empuje_fuerza_kg','hasta_1cm_ms','hasta_2cm_ms','hasta_5cm_ms','acel_pico_ms2','acel_media_ms2','tasa_50ms_cm_s']];
+  const k = S.springK > 0 ? S.springK : 0;
   const n = (v, d) => has(v) ? v.toFixed(d) : '';
   S.sets.filter(s=>!s.example).forEach((s,si)=>{
     const a = athOf(s.athlete) || {name:'Sin atleta', pos:''}, d = new Date(s.time);
     s.reps.forEach((r,ri)=> rows.push([dayKey(s.time), d.toTimeString().slice(0,5), `"${a.name.replace(/"/g,'')}"`, `"${(a.pos||'').replace(/"/g,'')}"`, exo(s.exercise).name, s.load, si+1, ri+1,
       n(r.v,3), n(r.vm,3), n(r.vp,3), n(r.rom*100,1), n(r.dur,2), Math.round(power(sysMass(s),r)), has(r.ppk)?Math.round(sysMass(s)*r.ppk):'',
-      has(r.fk)?Math.round(s.load*r.fk):'', n(r.ev,3), n(r.tut,2), ((1-r.v/s.best)*100).toFixed(1)]));
+      has(r.fk)?Math.round(s.load*r.fk):'', n(r.ev,3), n(r.tut,2), ((1-r.v/s.best)*100).toFixed(1),
+      r.src==='enc'?'encoder':r.src==='imu'?'sensor':'', r.cmp?n(r.cmp.v,3):'',
+      has(r.pmax)?n(r.pmax/10,1):'', has(r.pmax)&&k?n(r.pmax/10*k,1):'', has(r.t10)&&r.t10>=0?n(r.t10*1000,0):'', has(r.t20)&&r.t20>=0?n(r.t20*1000,0):'',
+      has(r.t50)&&r.t50>=0?n(r.t50*1000,0):'', n(r.apk,2), n(r.am,2), has(r.rfd)?n(r.rfd/10,1):'']));
   });
   return rows.map(r=>r.join(',')).join('\n');
 }
@@ -2021,13 +2183,14 @@ $('athlete').onchange = e => {
   S.athlete = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie();
 };
 $('exercise').onchange = e => { S.exercise = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); sendCfg(); renderSerie(); };
-function sendCfg(){ cmd('cut', `&cut=${S.cut}&gap=${S.autoGap}&ecc=${exo(S.exercise).ecc===false?0:1}`); }
-const setLoad = v => { S.load = Math.max(0, Math.min(500, Math.round(v*2)/2)); savePrefs(); renderSerie(); };
+function sendCfg(){ if (S.source !== 'sensor' || S.encHost){ encSendEcc(); return; } cmd('cut', `&cut=${exo(S.exercise).push?50:S.cut}&gap=${S.autoGap}&ecc=${exo(S.exercise).ecc===false?0:1}&push=${exo(S.exercise).push?1:0}&load=${S.load}`); encSendEcc(); }
+const setLoad = (v, fromBoard) => { S.load = Math.max(0, Math.min(500, Math.round(v*2)/2)); savePrefs(); if (!fromBoard && !S.recording) sendCfg(); renderSerie(); };
 $('loadUp').onclick = () => setLoad(S.load + 2.5);
 $('loadDn').onclick = () => setLoad(S.load - 2.5);
 $('load').onchange = e => { const v = parseFloat(e.target.value.replace(',','.')); if (!isNaN(v)) setLoad(v); else renderSerie(); };
 $('cut').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.cut = +b.dataset.v; if (S.liveSet && S.recording){ S.liveSet.cut = S.cut; cmd('cut', `&cut=${S.cut}`); } savePrefs(); renderSerie(); };
 $('go').onclick = () => S.recording ? endSet() : startSet();
+$('pushTarget').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.pushTarget = +b.dataset.v; savePrefs(); renderSerie(); };
 $('gap').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.autoGap = +b.dataset.v; sendCfg(); savePrefs(); renderSerie(); };
 $('snd').onclick = () => { S.sound = !S.sound; $('snd').setAttribute('aria-pressed', String(S.sound)); savePrefs(); };
 $('snd').setAttribute('aria-pressed', String(S.sound));
@@ -2047,19 +2210,21 @@ function connectSensor(){
   if (es) { try { es.close(); } catch(e){} }
   es = new EventSource('/events');
   esOpenedAt = Date.now();
-  es.addEventListener('rep', ev => { try { addRep(JSON.parse(ev.data)); } catch(e){} });
+  es.addEventListener('rep', ev => { try { routeRep('imu', JSON.parse(ev.data)); } catch(e){} });
   es.addEventListener('status', ev => { try {
     const d = JSON.parse(ev.data), wasCal = S.sensorState===0, wasLow = !!S.batLow;
     S.lastStatus = Date.now();
-    S.battery = d.bat; S.chg = d.chg; S.batLow = !!d.low; S.sensorState = d.state; S.cal = d.cal || 0; S.hz = d.hz; S.fw = d.fw; S.volt = d.v; showConn(true);
+    S.battery = d.bat; S.chg = d.chg; S.batLow = !!d.low; S.sensorState = d.state; S.cal = d.cal || 0; S.hz = d.hz; S.fw = d.fw; S.volt = d.v; S.noscr = d.noscr; showConn(true);
     if (typeof d.cs === 'number') S.calSec = d.cs;
     if (S.batLow && !wasLow) lowBattery();
     if (S.tab==='Serie') renderCal();
     if (S.tab==='Sensor') renderSensor();
   } catch(e){} });
+  // la carga se cambió con los botones de la pantalla del sensor
+  es.addEventListener('load', ev => { try { const d = JSON.parse(ev.data); if (!S.recording && isFinite(d.kg)) setLoad(d.kg, true); } catch(e){} });
   es.addEventListener('lowbat', () => { if (!S.batLow){ S.batLow = true; lowBattery(); showConn(true); } });
-  es.addEventListener('start', () => startSet(true));
-  es.addEventListener('stop', () => endSet(true));
+  es.addEventListener('start', () => { if (S.measure === 'imu') startSet(true); });
+  es.addEventListener('stop', () => { if (S.measure === 'imu') endSet(true); });
   es.addEventListener('sleep', () => { if (S.recording) endSet(true); S.sleeping = true; S.battery = null;
     showConn(false); renderCal();
     showBanner('El sensor se apagó. Para prenderlo, tocá BOOT en la placa.'); });
@@ -2074,7 +2239,277 @@ function connectSensor(){
     if (!S.connected && now - esOpenedAt > 4000 && !document.hidden) connectSensor();
   }, 1000);
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && S.source==='sensor' && !S.connected) connectSensor(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.source==='sensor' && !S.encHost && !S.connected) connectSensor(); });
+// =====================================================================
+// Encoder lineal (TrakEncoder): otro aparato en la misma red WiFi.
+// Manda sus reps con la misma forma que el sensor. La app lo busca en la red del sensor,
+// se conecta a sus eventos y, según "Mide con", usa sus reps, las del sensor o las dos (comparación).
+// =====================================================================
+const E = { es:null, ok:false, last:0, opened:0, info:null, boot:null, seq:null, watch:null, scanning:false, catching:false };
+const encHttpOk = () => location.protocol === 'http:';          // desde TrakVBT online (https) el navegador no deja
+const encUrl = p => `http://${S.encAddr}${p}`;
+function fetchT(url, ms=1500){
+  const c = ('AbortController' in window) ? new AbortController() : null;
+  const t = setTimeout(() => c && c.abort(), ms);
+  return fetch(url, {cache:'no-store', signal: c ? c.signal : undefined}).finally(() => clearTimeout(t));
+}
+async function encProbe(host, ms=1300){
+  try { const r = await fetchT(`http://${host}/info`, ms); const j = await r.json(); return j && j.dev === 'trakencoder' ? j : null; }
+  catch(e){ return null; }
+}
+async function encScan(){
+  if (!encHttpOk()){ toastIn('encToast','Abrí la app desde el sensor (no desde TrakVBT online) para usar el encoder'); return false; }
+  if (E.scanning) return false;
+  E.scanning = true; renderEnc(); toastIn('encToast','Buscando el encoder en la red…');
+  const cands = [];
+  if (S.encAddr) cands.push(S.encAddr);
+  const m = location.hostname.match(/^(\d+\.\d+\.\d+)\.(\d+)$/);
+  if (m){
+    const base = m[1], self = +m[2];
+    const last = base === '192.168.4' ? 12 : 254;               // en la red propia del sensor el encoder es .2–.12
+    for (let i = 1; i <= last; i++) if (i !== self && !cands.includes(`${base}.${i}`)) cands.push(`${base}.${i}`);
+  }
+  cands.push('trakencoder.local');
+  let found = null;
+  for (let i = 0; i < cands.length && !found; i += 24){
+    const res = await Promise.all(cands.slice(i, i+24).map(h => encProbe(h).then(j => j ? {h, j} : null)));
+    found = res.find(Boolean) || null;
+  }
+  E.scanning = false;
+  if (found){
+    S.encAddr = found.j.sta && found.j.ip && found.h === 'trakencoder.local' ? found.j.ip : found.h;
+    savePrefs(); toastIn('encToast', `Encoder encontrado en ${S.encAddr}`); encConnect();
+  } else {
+    toastIn('encToast','No encontré el encoder. Revisá que esté prendido y conectado a la red del sensor.');
+  }
+  renderEnc();
+  return !!found;
+}
+function encConnect(){
+  if (!S.encAddr || !encHttpOk() || !('EventSource' in window)) return;
+  if (E.es){ try { E.es.close(); } catch(e){} }
+  E.es = new EventSource(encUrl('/events')); E.opened = Date.now();
+  E.es.addEventListener('status', ev => { try {
+    const d = JSON.parse(ev.data), was = E.ok;
+    E.last = Date.now(); E.ok = true; E.info = d;
+    if (E.boot === null || E.seq === null){ E.boot = d.boot; E.seq = d.seq; }      // las reps viejas no cuentan
+    else if (d.boot !== E.boot){ E.boot = d.boot; E.seq = 0; }                      // la placa se reinició
+    if (d.seq > E.seq) encCatchUp();                                                // se perdió alguna rep
+    if (!was){ encSendEcc(); encShow(); }
+  } catch(e){} });
+  E.es.addEventListener('rep', ev => { try { encGotRep(JSON.parse(ev.data)); } catch(e){} });
+  E.es.onopen = () => { E.last = Date.now(); };
+  if (!E.watch) E.watch = setInterval(() => {
+    const now = Date.now();
+    if (E.ok && now - Math.max(E.last, E.opened) > 6000){ E.ok = false; encShow(); }
+    if (!E.ok && S.encAddr && now - E.opened > 5000 && !document.hidden) encConnect();
+  }, 1000);
+}
+function encGotRep(r){
+  if (E.boot !== null && r.boot !== E.boot){ E.boot = r.boot; E.seq = 0; }
+  if (E.seq !== null && r.id <= E.seq) return;                                    // ya la teníamos
+  E.seq = r.id;
+  routeRep('enc', r);
+}
+async function encCatchUp(){
+  if (E.catching) return; E.catching = true;
+  try { const r = await fetchT(encUrl(`/reps?since=${E.seq||0}`), 2500); (await r.json()).forEach(encGotRep); } catch(e){}
+  E.catching = false;
+}
+function encSendEcc(){
+  if (!E.ok || !S.encAddr) return;
+  fetchT(encUrl(`/cmd?c=ecc&a=${exo(S.exercise).ecc===false?0:1}`)).catch(()=>{});
+  // máquina de scrum: el encoder pasa a medir empujes contra el resorte en vez de reps
+  const wantPush = exo(S.exercise).push ? 1 : 0;
+  if (!E.info || (E.info.push ? 1 : 0) !== wantPush) fetchT(encUrl(`/cmd?c=push&a=${wantPush}`)).catch(()=>{});
+}
+function encShow(){
+  const p = $('encPill');
+  if (p){
+    const want = S.measure !== 'imu' || E.ok;
+    p.hidden = !want || S.source === 'online';
+    p.className = 'pill ' + (E.ok ? 'live' : 'off');
+    p.innerHTML = `<i></i>${E.ok ? 'Encoder' : 'Sin encoder'}`;
+    document.body.classList.toggle('pillsfull', !p.hidden);   // en el celular se esconde el nombre para que entren las píldoras
+  }
+  if (S.tab === 'Sensor') renderEnc();
+  if (S.tab === 'Serie') renderMeas();
+}
+// Reps del sensor (imu) o del encoder (enc) → serie, según "Mide con".
+// Con "Los dos" manda el encoder (es la referencia) y la rep del sensor queda como comparación.
+const pendImu = [];
+const cmpOf = r => ({src:r.src, v:r.v, vm:r.vm, vp:r.vp, rom:r.rom});
+const PAIR_MS = 8000;   // el encoder a veces cierra la rep recién al empezar la bajada: se acepta hasta 8 s de diferencia
+function routeRep(src, r){
+  delete r.boot; delete r.id;
+  r.src = src; r.at = Date.now();
+  const m = S.source === 'sensor' ? S.measure : 'imu';
+  if (m === 'imu'){ if (src === 'imu') addRep(r); return; }
+  if (m === 'enc'){ if (src === 'enc') addRep(r); return; }
+  if (src === 'enc'){
+    // en orden: la rep del sensor más vieja que todavía no tiene pareja (dentro de la ventana)
+    while (pendImu.length && r.at - pendImu[0].at > PAIR_MS) pendImu.shift();
+    if (pendImu.length){ r.cmp = cmpOf(pendImu.shift()); }
+    addRep(r);
+  } else {
+    if (S.recording && S.liveSet) S.liveSet.imuN = (S.liveSet.imuN || 0) + 1;   // reps del sensor recibidas en esta serie
+    let hit = null;     // la rep del encoder más vieja sin pareja (dentro de la ventana)
+    for (let i = Math.max(0, S.reps.length - 4); i < S.reps.length; i++){
+      const p = S.reps[i];
+      if (p.src === 'enc' && !p.cmp && r.at - p.at < PAIR_MS){ hit = p; break; }
+    }
+    if (hit){
+      hit.cmp = cmpOf(r);
+    } else {
+      pendImu.push(r);
+      while (pendImu.length && Date.now() - pendImu[0].at > PAIR_MS + 2000) pendImu.shift();
+    }
+    if (S.recording) store.set('trakvbt.live', {id:S.liveId, ...S.liveSet, reps:S.reps, time:S.t0});
+    if (S.tab === 'Serie') renderCmp(S.reps, S.recording ? {...S.liveSet, reps:S.reps} : null);
+  }
+}
+function renderMeas(){
+  const on = S.source === 'sensor';
+  $('measField').hidden = !on;
+  if (!on) return;
+  [...$('meas').children].forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.v === S.measure)); b.disabled = S.recording; });
+  const h = $('measHint');
+  const txt = S.measure === 'imu' ? '' :
+    !E.ok ? 'El encoder no está conectado. Andá a la pestaña Sensor › Encoder lineal › Buscar encoder.' :
+    S.measure === 'both' ? 'Cada rep se mide con el encoder y se compara con el sensor de la barra: ideal para validar.' : '';
+  h.textContent = txt; h.hidden = !txt;
+}
+// ---------------- Máquina de scrum (encoder en modo empuje) ----------------
+// La compresión del resorte es proporcional a la fuerza: kg = compresión (cm) × S.springK (kg/cm).
+function renderScrum(reps, shown){
+  const box = $('scrBox');
+  const pushes = reps.filter(r => has(r.pmax));
+  if (!exo(S.exercise).push){ box.hidden = true; return; }
+  box.hidden = false;
+  const k = S.springK > 0 ? S.springK : 0;           // kg por cm
+  const kgOf = mm => k ? mm / 10 * k : null;
+  const t = x => has(x) && x >= 0 ? `${fmt(x*1000,0)}<small> ms</small>` : '—';
+  const kIn = `<div class="scrk"><span>Resorte:</span><input id="springK" inputmode="decimal" placeholder="kg por cm" value="${k ? kg(k) : ''}"><span>kg por cm</span>
+    <button type="button" class="linkbtn" id="springHow">¿Cómo lo mido?</button></div>
+    <div class="note" id="springHelp" hidden>Enganchá una balanza de colgar al marco y tirá en la dirección del empuje hasta marcar 40 kg (o el peso que puedas sostener). Mirá en la pestaña Sensor › Encoder cuántos cm se comprimió y dividí: kg ÷ cm. Ej.: 40 kg y 4 cm → 10 kg por cm.</div>`;
+  if (!pushes.length){
+    box.innerHTML = `<span class="label">Máquina de scrum</span>
+      <div class="note">Medí con el <b>encoder</b> (cable al marco que se mueve, caja en la parte fija, en línea con el resorte) o con el <b>sensor</b> pegado con el imán al marco que se mueve. Antes de cada empuje la máquina tiene que estar quieta un momento. Cada empuje aparece acá: avance, arranque, velocidad y aceleración.</div>${kIn}`;
+  } else {
+    const p = pushes[pushes.length-1];
+    const peak = k ? `<b>${fmt(kgOf(p.pmax),0)}</b><small>kg de fuerza pico · ${fmt(p.pmax/10,1)} cm</small>`
+                   : `<b>${fmt(p.pmax/10,1)}</b><small>cm de compresión pico · cargá el resorte para ver kg</small>`;
+    const rfd = k ? `${fmt(kgOf(p.rfd),0)}<small> kg/s</small>` : `${fmt(p.rfd/10,0)}<small> cm/s</small>`;
+    const imp = !has(p.imp) ? '—' : k ? `${fmt(kgOf(p.imp),0)}<small> kg·s</small>` : `${fmt(p.imp/10,1)}<small> cm·s</small>`;
+    const rows = pushes.map((r,i) => `<tr><td>${i+1}</td><td>${k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
+    box.innerHTML = `<span class="label">Máquina de scrum · empuje ${pushes.length}</span>
+      <div class="scrbig">${peak}</div>
+      <div class="scrgrid">
+        <div><span>Hasta 1 cm</span><b>${t(p.t10)}</b></div>
+        <div><span>Hasta 2 cm</span><b>${t(p.t20)}</b></div>
+        <div><span>Hasta 5 cm</span><b>${t(p.t50)}</b></div>
+        <div><span>Al 95 % del máximo</span><b>${t(p.dur)}</b></div>
+        <div><span>Velocidad pico</span><b>${fmt(p.vp)}<small> m/s</small></b></div>
+        <div><span>Velocidad media</span><b>${fmt(p.vm)}<small> m/s</small></b></div>
+        <div><span>Aceleración pico</span><b>${has(p.apk)?fmt(p.apk,1):'—'}<small> m/s²</small></b></div>
+        <div><span>Aceleración media (hasta v. pico)</span><b>${has(p.am)?fmt(p.am,1):'—'}<small> m/s²</small></b></div>
+        <div><span>Tasa de desarrollo (50 ms)</span><b>${rfd}</b></div>
+        ${has(p.hold) ? `<div><span>Sostenido ≥ 90 %</span><b>${fmt(p.hold,1)}<small> s</small></b></div>` : ''}
+        ${has(p.imp) ? `<div><span>Impulso</span><b>${imp}</b></div>` : ''}
+      </div>
+      <table class="mini"><thead><tr><th>#</th><th>Pico</th><th>1 cm ms</th><th>2 cm ms</th><th>V pico</th><th>Acel. pico</th><th>Sost. s</th></tr></thead><tbody>${rows}</tbody></table>
+      ${kIn}`;
+  }
+  $('springK').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.springK = v > 0 ? v : 0; savePrefs(); renderSerie(); };
+  $('springHow').onclick = () => { $('springHelp').hidden = !$('springHelp').hidden; };
+}
+// misma comparación con otra métrica (vm: media de toda la subida, vp: pico)
+function cmpLine(pairs, k, label){
+  const ok = pairs.filter(x => has(x.r[k]) && has(x.r.cmp[k]) && x.r[k] > 0);
+  if (!ok.length) return '';
+  const d = ok.map(x => x.r.cmp[k] - x.r[k]), pc = ok.map(x => Math.abs(x.r.cmp[k] - x.r[k]) / x.r[k] * 100);
+  const m = d.reduce((a,b)=>a+b,0)/d.length, e = pc.reduce((a,b)=>a+b,0)/pc.length;
+  const enc = ok.reduce((a,x)=>a+x.r[k],0)/ok.length, imu = ok.reduce((a,x)=>a+x.r.cmp[k],0)/ok.length;
+  return `<div class="cmpsum">${label}: encoder ${fmt(enc)} · sensor ${fmt(imu)} m/s · diferencia ${(m>0?'+':m<0?'−':'')+fmt(Math.abs(m))} · error ${fmt(e,1)} %</div>`;
+}
+function renderCmp(reps, shown){
+  const box = $('cmpBox');
+  const pairs = reps.map((r, i) => ({i, r})).filter(x => x.r.cmp);
+  const setSrc = shown ? shown.src : (S.recording && S.liveSet ? S.liveSet.src : null);
+  const both = reps.length && (setSrc === 'both' || pairs.length);
+  if (!both){ box.hidden = true; return; }
+  box.hidden = false;
+  const encN = reps.filter(r => r.src === 'enc').length;
+  const imuN = Math.max(pairs.length, (shown && shown.imuN) || (S.recording && S.liveSet ? (S.liveSet.imuN || 0) : 0));
+  if (!pairs.length){
+    box.innerHTML = `<span class="label">Comparación encoder vs. sensor</span>
+      <div class="cmpnow">Encoder: <b>${encN}</b> reps · sensor de la barra: <b>${imuN}</b> reps recibidas</div>
+      <div class="cmpsum">${imuN ? 'Todavía no pude emparejar una rep del sensor con una del encoder.' : 'El sensor de la barra no contó ninguna rep: revisá que esté calibrado y que se mueva junto con el cable.'}</div>`;
+    return;
+  }
+  const last = reps[reps.length-1];
+  const d = pairs.map(x => x.r.cmp.v - x.r.v), pct = pairs.map(x => Math.abs(x.r.cmp.v - x.r.v) / x.r.v * 100);
+  const bias = d.reduce((a,b)=>a+b,0)/d.length, mape = pct.reduce((a,b)=>a+b,0)/pct.length;
+  const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v));
+  const now = last && last.cmp
+    ? `<div class="cmpnow">Sensor de la barra: <b>${fmt(last.cmp.v)} m/s</b> · diferencia <b>${sgn(last.cmp.v - last.v)} m/s</b> (${fmt(Math.abs(last.cmp.v-last.v)/last.v*100,1)} %)</div>`
+    : `<div class="cmpnow">Esperando la rep del sensor de la barra…</div>`;
+  const rows = pairs.slice(-12).map(x => `<tr><td>${x.i+1}</td><td>${fmt(x.r.v)}</td><td>${fmt(x.r.cmp.v)}</td><td>${sgn(x.r.cmp.v - x.r.v)}</td><td>${Math.round(x.r.rom*100)} / ${Math.round(x.r.cmp.rom*100)}</td></tr>`).join('');
+  box.innerHTML = `<span class="label">Comparación encoder vs. sensor</span>${now}
+    <table class="mini"><tr><th>Rep</th><th>Encoder</th><th>Sensor</th><th>Dif.</th><th>Recorrido cm</th></tr>${rows}</table>
+    <div class="cmpsum">${pairs.length} reps comparadas · diferencia media ${sgn(bias)} m/s · error medio ${fmt(mape,1)} %</div>
+    ${cmpLine(pairs, 'vm', 'Velocidad media de toda la subida')}${cmpLine(pairs, 'vp', 'Velocidad pico')}
+    <div class="cmpsum">Encoder: <b>${encN}</b> reps · sensor de la barra: <b>${imuN}</b> reps recibidas${imuN < encN ? ' — el sensor se perdió reps: pará 1 s quieto arriba entre cada rep y fijate que no gire en la barra.' : ''}</div>`;
+}
+function renderEnc(){
+  const kv = (l, v) => `<div class="tile"><div class="label">${l}</div><div class="v" style="font-size:20px">${v}</div></div>`;
+  const i = E.info || {};
+  $('encSub').textContent = !encHttpOk() ? 'solo desde la app del sensor' : E.scanning ? 'buscando…' : E.ok ? 'conectado' : S.encAddr ? 'sin conexión' : 'sin configurar';
+  $('encKv').innerHTML = kv('Estado', E.ok ? 'Conectado' : 'Desconectado') + kv('Dirección', S.encAddr ? esc(S.encAddr) : '—')
+    + kv('Resolución', i.cpm ? `${fmt(1/i.cpm,2)}<small>mm</small>` : '—') + kv('Firmware', i.fw ? esc(i.fw) : '—');
+  $('encScan').disabled = E.scanning || !encHttpOk();
+  $('encZero').disabled = !E.ok;
+  $('encPage').hidden = !S.encAddr || !encHttpOk();
+  if (S.encAddr) $('encPage').href = S.encHost ? '/config' : encUrl('/config');
+  $('encPage').textContent = 'Ajustes del encoder (red y calibración)';
+  if (S.encHost) $('encHelp').innerHTML = 'Estás usando la app desde el encoder, sin el sensor de la barra. Para que las series se suban a la nube, en <b>Ajustes del encoder</b> conectalo al WiFi del gimnasio o al hotspot del iPhone y abrí la app desde esa red.';
+  if (document.activeElement !== $('encAddr')) $('encAddr').value = S.encAddr || '';
+}
+$('meas').onclick = e => { const b = e.target.closest('button'); if (!b || S.recording) return; S.measure = b.dataset.v; savePrefs(); encShow(); renderSerie();
+  if (S.measure !== 'imu' && !E.ok && S.source === 'sensor'){ if (S.encAddr) encConnect(); else encScan(); } };
+$('encScan').onclick = () => encScan();
+function setNoScr(v) {
+  cmd('noscr', '&a=' + (v ? 1 : 0)).then(() => { S.noscr = v ? 1 : 0; renderSensor(); toastIn('scrToast', v ? 'Pantalla apagada' : 'Pantalla encendida'); });
+}
+$('scrOn').onclick = () => setNoScr(false);
+$('scrOff').onclick = () => setNoScr(true);
+$('fwGo').onclick = () => {
+  const f = $('fwFile').files[0];
+  if (!f){ toastIn('fwToast','Elegí primero el archivo .bin'); return; }
+  if (!/\.bin$/i.test(f.name) || /merged|bootloader|partitions/i.test(f.name)){ toastIn('fwToast','Ese no es: usá el archivo que termina en .ino.bin'); return; }
+  if (S.recording){ toastIn('fwToast','Terminá la serie antes de actualizar'); return; }
+  const fd = new FormData(); fd.append('fw', f, f.name);
+  const x = new XMLHttpRequest();
+  $('fwBarW').hidden = false; $('fwBar').style.width = '0%'; $('fwGo').disabled = true; $('fwSub').textContent = 'cargando…';
+  x.upload.onprogress = e => { if (e.lengthComputable) $('fwBar').style.width = Math.round(e.loaded / e.total * 100) + '%'; };
+  x.onload = () => {
+    let ok = false; try { ok = JSON.parse(x.responseText).ok; } catch(e){}
+    $('fwGo').disabled = false;
+    if (ok){ $('fwSub').textContent = 'listo'; toastIn('fwToast','Actualizado. El sensor se reinicia y la app se recarga sola.'); setTimeout(() => location.reload(), 9000); }
+    else { $('fwSub').textContent = 'error'; toastIn('fwToast','No se pudo actualizar. Revisá que sea el archivo correcto y probá de nuevo.'); }
+  };
+  x.onerror = () => { $('fwGo').disabled = false; $('fwSub').textContent = 'error'; toastIn('fwToast','Se cortó la conexión durante la carga. Probá de nuevo.'); };
+  x.open('POST', '/update'); x.send(fd);
+};
+$('encZero').onclick = () => fetchT(encUrl('/cmd?c=zero')).then(() => toastIn('encToast','Posición en cero')).catch(() => toastIn('encToast','Sin conexión con el encoder'));
+$('encAddrGo').onclick = async () => {
+  const h = $('encAddr').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+  if (!h){ $('encAddr').focus(); return; }
+  toastIn('encToast','Probando…');
+  const j = await encProbe(h, 2500);
+  if (!j){ toastIn('encToast',`No responde un encoder en ${h}`); return; }
+  S.encAddr = h; savePrefs(); encConnect(); toastIn('encToast','Conectado'); renderEnc();
+};
 function batText(){
   if (S.battery == null) return '—';
   if (S.battery < 0 || S.chg === -1) return 'USB';
@@ -2126,7 +2561,19 @@ if (pend && Array.isArray(pend.reps) && pend.reps.length && !S.sets.some(s=>s.id
 try { localStorage.removeItem('trakvbt.live'); } catch(e){}
 // versión online: publicada con https (GitHub Pages) o con ?online
 S.online = !onBoard && (location.protocol === 'https:' || /[?&]online\b/.test(location.search));
-if (onBoard){ S.source='sensor'; showConn(false); connectSensor(); loadWifi(); }
+if (onBoard){ S.source='sensor'; showConn(false);
+  // ¿la app se abrió desde el sensor de la barra o desde el encoder? (el encoder responde /info)
+  fetchT('/info', 2000).then(r => r.ok ? r.json() : null).catch(() => null).then(j => {
+    if (j && j.dev === 'trakencoder'){
+      // app servida por el encoder: funciona sola, sin el sensor
+      S.encHost = true; S.encAddr = location.host; S.measure = 'enc';
+      document.body.classList.add('enchost');
+      const tb = document.querySelector('nav.tabs button[data-tab=Sensor]'); tb.lastChild.textContent = 'Encoder';
+      $('snH1').textContent = 'Encoder';
+      encConnect();
+    } else { connectSensor(); loadWifi(); if (S.encAddr) encConnect(); }
+    encShow(); if (S.tab === 'Serie') renderSerie(); if (S.tab === 'Sensor') renderSensor();
+  }); }
 else if (S.online){ S.source='online'; showConn();
   const tb = document.querySelector('nav.tabs button[data-tab=Sensor]'); tb.lastChild.textContent = 'Datos'; }
 else { seedDemo(); if (!S.athlete) S.athlete = 'd1'; }
