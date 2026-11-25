@@ -86,7 +86,8 @@ main{max-width:1180px;margin:0 auto;padding-block:14px 170px;
 .phead .sub{font-size:13px;color:var(--muted);text-align:right}
 
 /* Formularios */
-.setup{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.setup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.field .sel{width:100%;min-width:0;text-overflow:ellipsis}
 .field{display:grid;gap:5px;min-width:0}
 .sel,.txt{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--sunk);font-size:16px}
 .sel{appearance:none;-webkit-appearance:none;
@@ -245,7 +246,8 @@ body.enchost #conn,body.enchost #bat,body.enchost #pwr,body.enchost #calCard,bod
 .pushtbl{min-width:600px}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
 .pushtbl tr>:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .pushtbl tr>:last-child:has(.repx){position:sticky;right:0;background:var(--surface);z-index:1}
-.pushwrap{overflow-x:auto;margin:0 -2px}.pushhint{font-size:12px;color:var(--muted);margin:-4px 0 0}
+.wide{min-width:560px}.wide td{white-space:nowrap}
+.pushwrap{overflow-x:auto;margin:0 -2px;max-width:100%;min-width:0}#pgBody{min-width:0;max-width:100%}#pgBody>*{min-width:0}#pgBody .panel{min-width:0;max-width:100%}.pushhint{font-size:12px;color:var(--muted);margin:-4px 0 0}
 .mini tr.dropped td{opacity:.4;text-decoration:line-through}
 .mini tr.dropped td:last-child{opacity:1;text-decoration:none}
 .repx{border:0;background:var(--sunk);color:var(--muted);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer}
@@ -1548,6 +1550,8 @@ function renderAtletas(){
   $('adBw').onclick = e => { e.preventDefault(); bwSheet(a); };
   const exIds = [...new Set(S.sets.filter(s=>s.athlete===a.id).map(s=>s.exercise))];
   $('adSummary').innerHTML = exIds.length ? `<table class="mini"><tr><th>Ejercicio</th><th>1RM est.</th><th>1RM / peso</th><th>Mejor VMP</th><th>Carga máx.</th><th>Sesiones</th></tr>${exIds.map(ex=>{
+      if (exo(ex).push){ const P = pushSessions(a.id, ex), q = pushStatsOf(P.flatMap(o=>o.sets.flatMap(s=>s.reps)));
+        return `<tr><td>${exo(ex).name}</td><td colspan="3">v pico ${fmt(q.vp)} m/s · 1 cm en ${pms(q.t10)} · avance ${q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}</td><td>${kg(Math.max(...P.flatMap(o=>o.sets.map(s=>s.load))))} kg</td><td>${P.length}</td></tr>`; }
       const rm = currentRM(a.id, ex), ses = sessionsOf(a.id, ex), bwN = bwAt(a.id);
       return `<tr><td>${exo(ex).name}</td><td>${rm?Math.round(rm)+' kg':'—'}</td><td>${rm&&bwN?fmt(rm/bwN,2):'—'}</td><td>${fmt(Math.max(...ses.map(o=>o.best)))} m/s</td><td>${kg(Math.max(...ses.map(o=>o.maxLoad)))} kg</td><td>${ses.length}</td></tr>`;
     }).join('')}</table>` : '<div class="empty">Sin series todavía. Tocá «Entrenar ahora».</div>';
@@ -1626,6 +1630,56 @@ function delta(a, b, unit, d=0, pct=true){
   const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
   return `<div class="d ${cls}">${diff>=0?'+':''}${fmt(diff,d)}${unit}${pct?` (${diff>=0?'+':''}${fmt(p,0)}%)`:''} vs. primera</div>`;
 }
+
+// ---------- máquina de scrum: resumen por sesión (no usa VMP, 1RM ni pérdida, que son de barra) ----------
+const pmm = r => has(r.pmax) ? r.pmax : (r.rom||0)*1000;
+function pushStatsOf(reps){
+  const t = k => reps.map(r=>r[k]).filter(x=>has(x) && x >= 0);
+  const mx = a => a.length ? Math.max(...a) : null, mn = a => a.length ? Math.min(...a) : null;
+  return { n: reps.length, mm: mx(reps.map(pmm)), t10: mn(t('t10')), t20: mn(t('t20')), t50: mn(t('t50')),
+    vp: mx(reps.map(r=>r.vp||0)), vm: mx(reps.map(r=>has(r.vm)?r.vm:r.v||0)), apk: mx(t('apk')) };
+}
+function pushSessions(ath, ex, since=0){
+  const by = new Map();
+  S.sets.filter(s=>s.athlete===ath && s.exercise===ex && s.time>=since).sort((a,b)=>a.time-b.time).forEach(s=>{
+    const k = dayKey(s.time); if (!by.has(k)) by.set(k, {time:s.time, sets:[]}); by.get(k).sets.push(s); });
+  return [...by.values()].map(o=>Object.assign(o, pushStatsOf(o.sets.flatMap(s=>s.reps))));
+}
+const pkg = mm => S.springK > 0 && mm != null ? ` (${fmt(mm/10*S.springK,0)} kg)` : '';
+const pms = x => x != null ? fmt(x*1000,0)+' ms' : '—';
+function pushProgressHTML(ath, ex, since=0, pdf=false){
+  const P = pushSessions(ath, ex, since);
+  if (!P.length) return '';
+  const all = pushStatsOf(P.flatMap(o=>o.sets.flatMap(s=>s.reps)));
+  const first = P[0], last = P[P.length-1];
+  const pts = k => P.filter(o=>o[k]!=null).map(o=>({t:o.time, y:k==='mm'?o[k]/10:k[0]==='t'?o[k]*1000:o[k]}));
+  const c1 = pdf ? '#2350E6' : 'var(--s1)', c2 = pdf ? '#13917F' : 'var(--s4)';
+  const kp = (lbl, v, unit, d) => pdf ? `<div class="kpi"><div class="label">${lbl}</div><div class="v">${v}<small> ${unit}</small></div>${d||''}</div>`
+                                      : `<div class="tile"><div class="label">${lbl}</div><div class="v">${v}<small>${unit}</small></div>${d||''}</div>`;
+  const dl = (k, u, dec) => P.length>1 && first[k]!=null && last[k]!=null && k[0]!=='t' ? delta(k==='mm'?first[k]/10:first[k], k==='mm'?last[k]/10:last[k], u, dec) : '';
+  const kpis = kp('Mejor avance', all.mm!=null?fmt(all.mm/10,1):'—', 'cm', `<div class="d">${S.springK>0&&all.mm!=null?fmt(all.mm/10*S.springK,0)+' kg':'cargá kg por cm para ver la fuerza'}</div>`)
+    + kp('Más rápido a 1 cm', all.t10!=null?fmt(all.t10*1000,0):'—', 'ms', '<div class="d">menos es mejor</div>')
+    + kp('V pico máx.', fmt(all.vp), 'm/s', dl('vp','',2))
+    + kp('Acel. pico máx.', all.apk!=null?fmt(all.apk,1):'—', 'm/s²', dl('apk','',1));
+  const chart = (title, sub, series, opt) => pdf ? `<div><h3>${title}</h3><svg class="chart" viewBox="0 0 340 180">${timeSVG(series, opt)}</svg></div>`
+    : `<section class="panel"><div class="phead"><h2>${title}</h2><span class="sub">${sub}</span></div><svg class="chart" viewBox="0 0 340 180">${timeSVG(series, opt)}</svg></section>`;
+  const charts = chart('Velocidad pico', 'mejor empuje de cada sesión', [{color:c1, pts:pts('vp')}])
+    + chart('Tiempo hasta 1 cm', 'más rápido de cada sesión · menos es mejor', [{color:c2, pts:pts('t10')}], {yFmt:v=>Math.round(v), unit:' ms'})
+    + chart('Avance máximo', 'cm por sesión', [{color:c1, pts:pts('mm')}], {yFmt:v=>fmt(v,1), unit:' cm'})
+    + chart('Aceleración pico', 'm/s² por sesión', [{color:c2, pts:pts('apk')}], {yFmt:v=>fmt(v,1)});
+  const ses = `<table class="mini${pdf?'':' wide'}"><tr><th>Fecha</th><th>Series</th><th>Empujes</th><th>Avance máx.</th><th>1 cm</th><th>2 cm</th><th>5 cm</th><th>V pico</th><th>Acel. pico</th></tr>
+    ${P.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${o.n}</td><td>${o.mm!=null?fmt(o.mm/10,1)+' cm'+pkg(o.mm):'—'}</td><td>${pms(o.t10)}</td><td>${pms(o.t20)}</td><td>${pms(o.t50)}</td><td>${fmt(o.vp)}</td><td>${o.apk!=null?fmt(o.apk,1):'—'}</td></tr>`).join('')}</table>`;
+  const lastT = `<table class="mini${pdf?'':' wide'}"><tr><th>Hora</th><th>Carga</th><th>Empujes</th><th>Avance máx.</th><th>1 cm</th><th>V pico</th><th>V media</th><th>Acel. pico</th></tr>
+    ${last.sets.map(s=>{ const q = pushStatsOf(s.reps); return `<tr><td>${new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td><td>${kg(s.load)} kg</td><td>${q.n}</td><td>${q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}</td><td>${pms(q.t10)}</td><td>${fmt(q.vp)}</td><td>${fmt(q.vm)}</td><td>${q.apk!=null?fmt(q.apk,1):'—'}</td></tr>`; }).join('')}</table>`;
+  const note = `Máquina de scrum: cada fila usa el mejor empuje (no el promedio). Velocidades en m/s, tiempos desde que arranca el empuje. Acá no se calculan 1RM, pérdida de velocidad ni potencia: son de ejercicios con barra.`;
+  if (pdf) return `<div class="kpis">${kpis}</div><div class="two">${charts}</div><h3>Sesiones</h3>${ses}<h3>Última sesión · ${dLong(last.time)}</h3>${lastT}<p class="note" style="font-size:12px;color:#5A6576">${note}</p>`;
+  return `<section class="panel"><div class="tiles">${kpis}</div><div class="d" style="margin-top:8px;color:var(--muted);font-size:13px">${P.length} sesiones · desde ${dShort(first.time)}</div></section>
+    <div class="grid2">${charts}</div>
+    <section class="panel"><div class="phead"><h2>Sesiones</h2></div><div class="pushwrap">${ses}</div></section>
+    <section class="panel"><div class="phead"><h2>Última sesión</h2><span class="sub">${dLong(last.time)}</span></div><div class="pushwrap">${lastT}</div><p class="note">${note}</p></section>
+    <div class="row" style="margin-top:0"><button class="btn1" id="pgReport">Informe PDF de ${esc(athName(ath))}</button></div>`;
+}
+
 function renderProgreso(){
   $('pgAth').value = S.pgAth;
   const exIds = [...new Set(S.sets.filter(s=>s.athlete===S.pgAth).map(s=>s.exercise))];
@@ -1635,6 +1689,11 @@ function renderProgreso(){
   const body = $('pgBody');
   if (!S.pgAth){ body.innerHTML = '<section class="panel"><div class="empty">Cargá un atleta y hacé algunas series para ver su progreso.</div></section>'; return; }
   const D = progressData(S.pgAth, S.pgEx), ex = exo(S.pgEx);
+  if (ex.push){
+    const h = pushProgressHTML(S.pgAth, S.pgEx);
+    if (!h){ body.innerHTML = `<section class="panel"><div class="empty">${esc(athName(S.pgAth))} todavía no tiene series de ${ex.name.toLowerCase()}.</div></section>`; return; }
+    body.innerHTML = h; $('pgReport').onclick = () => openReport(S.pgAth); return;
+  }
   if (!D.ses.length){ body.innerHTML = `<section class="panel"><div class="empty">${esc(athName(S.pgAth))} todavía no tiene series de ${ex.name.toLowerCase()}.</div></section>`; return; }
   const rm0 = D.rmPts[0], rm1 = D.rmPts[D.rmPts.length-1];
   const p0 = D.powPts[0], p1 = D.powPts[D.powPts.length-1];
@@ -1695,7 +1754,9 @@ function buildReport(){
     <div class="rmeta"><b>Informe de entrenamiento por velocidad</b><br>${t0?`${dShort(t0)} – ${dShort(t1)}`:'Sin datos'}<br>${days.size} sesiones · ${sets.length} series<br>Generado ${dLong(Date.now())}</div></div>`;
   if (!exIds.length) h += '<p>No hay series en el período elegido.</p>';
   exIds.forEach(ex => {
-    const e = exo(ex), D = progressData(a.id, ex, since);
+    const e = exo(ex);
+    if (e.push){ h += `<div class="exblock"><h2>${e.name}</h2>${pushProgressHTML(a.id, ex, since, true)}</div>`; return; }
+    const D = progressData(a.id, ex, since);
     const P = profileOf(a.id, ex);
     const rm0 = D.rmPts[0], rm1 = D.rmPts[D.rmPts.length-1];
     const lastS = D.ses[D.ses.length-1];
