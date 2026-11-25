@@ -1,5 +1,5 @@
 // TrakVBT online: funciona sin conexión. Se regenera con web/build.py
-const CACHE = 'trakvbt-c1ce67f607';
+const CACHE = 'trakvbt-89527156dd';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

@@ -243,6 +243,7 @@ button.zone{border:0;font-family:inherit;cursor:pointer}
 .pwbox input{background:var(--surface)}
 .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 body.enchost #conn,body.enchost #bat,body.enchost #pwr,body.enchost #calCard,body.enchost #snPanel,body.enchost #wifiPanel,body.enchost #measField,body.enchost #encScan,body.enchost .encman{display:none!important}
+.scrtop{display:grid;grid-template-columns:1fr 1fr;gap:10px}.scrtop b{display:block;font:700 44px/1.05 var(--f-num);font-variant-numeric:tabular-nums}.scrtop small{color:var(--muted);font-size:13px}.scrsub{color:var(--muted);font-size:14px;margin-top:4px}
 .pushtbl{min-width:600px}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
 .pushtbl tr>:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .pushtbl tr>:last-child:has(.repx){position:sticky;right:0;background:var(--surface);z-index:1}
@@ -1145,7 +1146,23 @@ function renderSerie(newRep){
   const last = reps[reps.length-1];
   const best = reps.length ? Math.max(...reps.map(r=>r.v)) : 0;
   const vl = last ? (1-last.v/best)*100 : 0;
-  if (last){
+  // máquina de scrum: grande la velocidad pico; abajo aceleración pico, hasta 1 cm, avance y media
+  const lbl = (id, t) => { $(id).previousElementSibling.textContent = t; };
+  lbl('tPeak', isPushEx ? 'Aceleración pico' : 'Pico'); lbl('tPow', isPushEx ? 'Hasta 1 cm' : 'Potencia');
+  lbl('tRom', isPushEx ? 'Avance' : 'Recorrido'); lbl('tVL', isPushEx ? 'V media' : 'Pérdida');
+  $('tF').closest('.tiles').hidden = isPushEx; $('zone').hidden = isPushEx; $('zbar').hidden = isPushEx;
+  if (last && isPushEx){
+    $('repno').textContent = `EMPUJE ${reps.length} · VELOCIDAD PICO`;
+    $('vel').innerHTML = `${fmt(last.vp)}<small>m/s</small>`;
+    const k = S.springK > 0 ? S.springK : 0, mm = has(last.pmax) ? last.pmax : last.rom*1000;
+    $('tPeak').innerHTML = has(last.apk) ? `${fmt(last.apk,1)}<small>m/s²</small>` : '—';
+    $('tPow').innerHTML = has(last.t10) && last.t10 >= 0 ? `${fmt(last.t10*1000,0)}<small>ms</small>` : '—';
+    $('tPowRel').textContent = has(last.t50) && last.t50 >= 0 ? `5 cm en ${fmt(last.t50*1000,0)} ms` : '';
+    $('tRom').innerHTML = `${fmt(mm/10,1)}<small>cm</small>${k?` <small>· ${fmt(mm/10*k,0)} kg</small>`:''}`;
+    $('tVL').innerHTML = `${fmt(has(last.vm)?last.vm:last.v)}<small>m/s</small>`; $('tVLbox').className = 'tile';
+    drawCurve(last); renderSci(shown, reps, best, 0);
+    if (newRep){ $('vel').classList.remove('pop'); void $('vel').offsetWidth; $('vel').classList.add('pop'); }
+  } else if (last){
     const zi = zoneOf(last.v), z = ZONES[zi];
     $('repno').textContent = `REP ${reps.length}`;
     $('vel').innerHTML = `${fmt(last.v)}<small>m/s</small>`;
@@ -2459,7 +2476,7 @@ function renderScrum(reps, shown){
   } else {
     const p = pushes[pushes.length-1];
     const peak = k ? `<b>${fmt(kgOf(p.pmax),0)}</b><small>kg de fuerza pico · ${fmt(p.pmax/10,1)} cm</small>`
-                   : `<b>${fmt(p.pmax/10,1)}</b><small>cm de compresión pico · cargá el resorte para ver kg</small>`;
+                   : `<b>${fmt(p.pmax/10,1)}</b><small>cm de avance máximo · cargá el resorte para ver kg</small>`;
     const rfd = k ? `${fmt(kgOf(p.rfd),0)}<small> kg/s</small>` : `${fmt(p.rfd/10,0)}<small> cm/s</small>`;
     const imp = !has(p.imp) ? '—' : k ? `${fmt(kgOf(p.imp),0)}<small> kg·s</small>` : `${fmt(p.imp/10,1)}<small> cm·s</small>`;
     const rows = pushes.map((r,i) => `<tr><td>${i+1}</td><td>${k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
