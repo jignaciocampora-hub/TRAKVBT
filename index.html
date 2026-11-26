@@ -244,7 +244,7 @@ button.zone{border:0;font-family:inherit;cursor:pointer}
 .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 body.enchost #conn,body.enchost #bat,body.enchost #pwr,body.enchost #calCard,body.enchost #snPanel,body.enchost #wifiPanel,body.enchost #measField,body.enchost #encScan,body.enchost .encman{display:none!important}
 .scrtop{display:grid;grid-template-columns:1fr 1fr;gap:10px}.scrtop b{display:block;font:700 44px/1.05 var(--f-num);font-variant-numeric:tabular-nums}.scrtop small{color:var(--muted);font-size:13px}.scrsub{color:var(--muted);font-size:14px;margin-top:4px}
-.pushtbl{min-width:600px}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
+.pushtbl{min-width:600px}.mini tr.revisar td{background:color-mix(in srgb,var(--warn,#E0A030) 14%,transparent)}.rv{color:var(--warn,#C07800);font-weight:700}.mini small.rv{color:var(--warn,#C07800);font-weight:700}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
 .pushtbl tr>:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .pushtbl tr>:last-child:has(.repx){position:sticky;right:0;background:var(--surface);z-index:1}
 .wide{min-width:560px}.wide td{white-space:nowrap}
@@ -729,10 +729,11 @@ const S = {
   tab:'Serie', detail:null, pgAth:'', pgEx:'sq', setKind:'',
   measure:'imu', encAddr:'',          // con qué se mide la serie: sensor (imu), encoder (enc) o los dos (both)
   springK:0,                          // máquina de scrum: kg por cm de compresión del resorte (0 = sin calibrar)
+  pushMax:11,                         // máquina de scrum: recorrido máximo posible (cm); lo que lo pase es error de medición
   pushTarget:4,                       // máquina de scrum: empujes por serie (0 = libre); al llegar se guarda la serie
 };
 Object.assign(S, store.get('trakvbt.prefs', {}));
-const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl, measure:S.measure, encAddr:S.encAddr, springK:S.springK, pushTarget:S.pushTarget});
+const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl, measure:S.measure, encAddr:S.encAddr, springK:S.springK, pushMax:S.pushMax, pushTarget:S.pushTarget});
 const saveAll = () => {
   const ok = store.set('trakvbt.athletes', S.athletes.filter(a=>!a.example)) && store.set('trakvbt.sets', S.sets.filter(s=>!s.example));
   if (!ok) toastIn('dToast','No hay espacio para guardar: exportá un respaldo');
@@ -1149,7 +1150,7 @@ function renderSerie(newRep){
   // máquina de scrum: grande la velocidad pico; abajo aceleración pico, hasta 1 cm, avance y media
   const lbl = (id, t) => { $(id).previousElementSibling.textContent = t; };
   lbl('tPeak', isPushEx ? 'Aceleración pico' : 'Pico'); lbl('tPow', isPushEx ? 'Hasta 1 cm' : 'Potencia');
-  lbl('tRom', isPushEx ? 'Avance' : 'Recorrido'); lbl('tVL', isPushEx ? 'V media' : 'Pérdida');
+  lbl('tRom', isPushEx ? 'Avance' : 'Recorrido'); $('tRom').parentElement.className = 'tile'; lbl('tVL', isPushEx ? 'V media' : 'Pérdida');
   $('tF').closest('.tiles').hidden = isPushEx; $('zone').hidden = isPushEx; $('zbar').hidden = isPushEx;
   if (last && isPushEx){
     $('repno').textContent = `EMPUJE ${reps.length} · VELOCIDAD PICO`;
@@ -1158,7 +1159,9 @@ function renderSerie(newRep){
     $('tPeak').innerHTML = has(last.apk) ? `${fmt(last.apk,1)}<small>m/s²</small>` : '—';
     $('tPow').innerHTML = has(last.t10) && last.t10 >= 0 ? `${fmt(last.t10*1000,0)}<small>ms</small>` : '—';
     $('tPowRel').textContent = has(last.t50) && last.t50 >= 0 ? `5 cm en ${fmt(last.t50*1000,0)} ms` : '';
-    $('tRom').innerHTML = `${fmt(mm/10,1)}<small>cm</small>${k?` <small>· ${fmt(mm/10*k,0)} kg</small>`:''}`;
+    $('tRom').innerHTML = `${fmt(mm/10,1)}<small>cm</small>${!overMax(last)&&k?` <small>· ${fmt(mm/10*k,0)} kg</small>`:''}`;
+    $('tRom').parentElement.className = 'tile' + (overMax(last) ? ' warnv' : '');
+    if (overMax(last)) lbl('tRom', `Avance · revisar (máx. ${kg(S.pushMax)} cm)`);
     $('tVL').innerHTML = `${fmt(has(last.vm)?last.vm:last.v)}<small>m/s</small>`; $('tVLbox').className = 'tile';
     drawCurve(last); renderSci(shown, reps, best, 0);
     if (newRep){ $('vel').classList.remove('pop'); void $('vel').offsetWidth; $('vel').classList.add('pop'); }
@@ -1427,11 +1430,12 @@ function setRow(s, showAth){
   if (e.push){   // máquina de scrum: avance, arranque y velocidad del mejor empuje
     const k = S.springK > 0 ? S.springK : 0;
     const mm = r => has(r.pmax) ? r.pmax : r.rom*1000;
-    const bestP = s.reps.reduce((a,r)=> !a || mm(r) > mm(a) ? r : a, null);
-    const t1 = s.reps.map(r=>r.t10).filter(x=>has(x) && x >= 0);
-    const vpk = Math.max(...s.reps.map(r=>r.vp||0));
+    const ok = s.reps.filter(r => !overMax(r)), nBad = s.reps.length - ok.length;
+    const bestP = ok.reduce((a,r)=> !a || mm(r) > mm(a) ? r : a, null);
+    const t1 = ok.map(r=>r.t10).filter(x=>has(x) && x >= 0);
+    const vpk = ok.length ? Math.max(...ok.map(r=>r.vp||0)) : 0;
     return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
-      <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b><br>${s.reps.length} empujes · máx. ${bestP?fmt(mm(bestP)/10,1)+' cm'+(k?` (${fmt(mm(bestP)/10*k,0)} kg)`:''):'—'}${t1.length?` · 1 cm en ${fmt(Math.min(...t1)*1000,0)} ms`:''} · v pico ${fmt(vpk)} m/s · ${hh}</div>
+      <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b><br>${s.reps.length} empuje${s.reps.length===1?"":"s"} · máx. ${bestP?fmt(mm(bestP)/10,1)+' cm'+(k?` (${fmt(mm(bestP)/10*k,0)} kg)`:''):'—'}${t1.length?` · 1 cm en ${fmt(Math.min(...t1)*1000,0)} ms`:''} · v pico ${fmt(vpk)} m/s · ${hh}${nBad?` · <span class="rv">${nBad} a revisar (más de ${kg(S.pushMax)} cm)</span>`:''}</div>
       <div class="vlp ok">›</div></div>`;
   }
   return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
@@ -1458,7 +1462,8 @@ function pushTable(s, editable){
   const n1 = (x, d=1) => has(x) ? fmt(x, d) : '—';
   const rows = s.reps.map((r,i) => {
     const mm = has(r.pmax) ? r.pmax : r.rom*1000;
-    return `<tr data-i="${i}"><td>${i+1}</td><td>${fmt(mm/10,1)}${k?`<br><small>${fmt(mm/10*k,0)} kg</small>`:''}</td><td>${ms(r.t10)}</td><td>${ms(r.t20)}</td><td>${ms(r.t50)}</td>
+    const bad = S.pushMax > 0 && mm/10 > S.pushMax*1.03;
+    return `<tr data-i="${i}"${bad?' class="revisar" title="Más que el recorrido máximo de la máquina: mal medido"':''}><td>${i+1}</td><td>${fmt(mm/10,1)}${bad?'<br><small class="rv">revisar</small>':k?`<br><small>${fmt(mm/10*k,0)} kg</small>`:''}</td><td>${ms(r.t10)}</td><td>${ms(r.t20)}</td><td>${ms(r.t50)}</td>
       <td>${fmt(r.vp)}</td><td>${fmt(has(r.vm)?r.vm:r.v)}</td><td>${n1(r.apk)}</td><td>${n1(r.am)}</td><td>${has(r.rfd)?fmt((k?r.rfd/10*k:r.rfd/10),0):'—'}</td>
       ${editable?`<td><button type="button" class="repx" data-x="${i}" aria-label="Quitar empuje ${i+1}">✕</button></td>`:''}</tr>`;
   }).join('');
@@ -1649,8 +1654,11 @@ function delta(a, b, unit, d=0, pct=true){
 }
 
 // ---------- máquina de scrum: resumen por sesión (no usa VMP, 1RM ni pérdida, que son de barra) ----------
-const pmm = r => has(r.pmax) ? r.pmax : (r.rom||0)*1000;
+function pmm(r){ return has(r.pmax) ? r.pmax : (r.rom||0)*1000; }
+// avance imposible (más que el recorrido de la máquina): mal medido, no cuenta para los mejores
+function overMax(r){ return S.pushMax > 0 && pmm(r) / 10 > S.pushMax * 1.03; }
 function pushStatsOf(reps){
+  reps = reps.filter(r => !overMax(r));
   const t = k => reps.map(r=>r[k]).filter(x=>has(x) && x >= 0);
   const mx = a => a.length ? Math.max(...a) : null, mn = a => a.length ? Math.min(...a) : null;
   return { n: reps.length, mm: mx(reps.map(pmm)), t10: mn(t('t10')), t20: mn(t('t20')), t50: mn(t('t50')),
@@ -2469,6 +2477,9 @@ function renderScrum(reps, shown){
   const t = x => has(x) && x >= 0 ? `${fmt(x*1000,0)}<small> ms</small>` : '—';
   const kIn = `<div class="scrk"><span>Resorte:</span><input id="springK" inputmode="decimal" placeholder="kg por cm" value="${k ? kg(k) : ''}"><span>kg por cm</span>
     <button type="button" class="linkbtn" id="springHow">¿Cómo lo mido?</button></div>
+    ${(()=>{ const n = S.sets.filter(x=>exo(x.exercise).push).reduce((a,x)=>a+x.reps.filter(overMax).length,0);
+      return n ? `<div class="scrk"><button type="button" class="btn2" id="dropOver">Quitar los ${n} empujes de más de ${kg(S.pushMax)} cm (todas las series)</button></div>` : ''; })()}
+    <div class="scrk"><span>Recorrido máximo:</span><input id="pushMax" inputmode="decimal" placeholder="cm" value="${S.pushMax > 0 ? kg(S.pushMax) : ''}"><span>cm · lo que lo pase se marca "revisar"</span></div>
     <div class="note" id="springHelp" hidden>Enganchá una balanza de colgar al marco y tirá en la dirección del empuje hasta marcar 40 kg (o el peso que puedas sostener). Mirá en la pestaña Sensor › Encoder cuántos cm se comprimió y dividí: kg ÷ cm. Ej.: 40 kg y 4 cm → 10 kg por cm.</div>`;
   if (!pushes.length){
     box.innerHTML = `<span class="label">Máquina de scrum</span>
@@ -2479,7 +2490,7 @@ function renderScrum(reps, shown){
                    : `<b>${fmt(p.pmax/10,1)}</b><small>cm de avance máximo · cargá el resorte para ver kg</small>`;
     const rfd = k ? `${fmt(kgOf(p.rfd),0)}<small> kg/s</small>` : `${fmt(p.rfd/10,0)}<small> cm/s</small>`;
     const imp = !has(p.imp) ? '—' : k ? `${fmt(kgOf(p.imp),0)}<small> kg·s</small>` : `${fmt(p.imp/10,1)}<small> cm·s</small>`;
-    const rows = pushes.map((r,i) => `<tr><td>${i+1}</td><td>${k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
+    const rows = pushes.map((r,i) => `<tr${overMax(r)?' class="revisar"':''}><td>${i+1}</td><td>${overMax(r) ? fmt(r.pmax/10,1)+' cm<br><small class="rv">revisar</small>' : k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
     box.innerHTML = `<span class="label">Máquina de scrum · empuje ${pushes.length}</span>
       <div class="scrbig">${peak}</div>
       <div class="scrgrid">
@@ -2500,6 +2511,18 @@ function renderScrum(reps, shown){
   }
   $('springK').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.springK = v > 0 ? v : 0; savePrefs(); renderSerie(); };
   $('springHow').onclick = () => { $('springHelp').hidden = !$('springHelp').hidden; };
+  if ($('dropOver')) $('dropOver').onclick = () => {
+    const sets = S.sets.filter(x => exo(x.exercise).push && x.reps.some(overMax));
+    const n = sets.reduce((a,x)=>a+x.reps.filter(overMax).length,0);
+    if (!confirm(`¿Quitar ${n} empujes de más de ${kg(S.pushMax)} cm? Son mediciones imposibles para esta máquina. Las series que queden vacías se borran.`)) return;
+    sets.forEach(x => {
+      x.reps = x.reps.filter(r => !overMax(r));
+      if (!x.reps.length){ S.sets = S.sets.filter(y => y.id !== x.id); if (cloudIn()) { C.tomb.sets.push(x.id); cSave(); } return; }
+      x.reps.forEach((r,i) => { r.n = i+1; }); finishSet(x); x.edited = Date.now();
+    });
+    saveAll(); renderAll();
+  };
+  $('pushMax').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.pushMax = v > 0 ? v : 0; savePrefs(); renderSerie(); };
 }
 // misma comparación con otra métrica (vm: media de toda la subida, vp: pico)
 function cmpLine(pairs, k, label){
