@@ -244,6 +244,8 @@ button.zone{border:0;font-family:inherit;cursor:pointer}
 .kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 body.enchost #conn,body.enchost #bat,body.enchost #pwr,body.enchost #calCard,body.enchost #snPanel,body.enchost #wifiPanel,body.enchost #measField,body.enchost #encScan,body.enchost .encman{display:none!important}
 .scrtop{display:grid;grid-template-columns:1fr 1fr;gap:10px}.scrtop b{display:block;font:700 44px/1.05 var(--f-num);font-variant-numeric:tabular-nums}.scrtop small{color:var(--muted);font-size:13px}.scrsub{color:var(--muted);font-size:14px;margin-top:4px}
+.xpsec{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}.xph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}.xpall{font-size:13px;color:var(--muted)}
+.xpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 12px}.xpck{display:flex;gap:8px;align-items:flex-start;font-size:15px;line-height:1.3}.xpck small{color:var(--muted)}.xpck input{margin-top:3px;width:18px;height:18px;flex:none}
 .pushtbl{min-width:600px}.mini tr.revisar td{background:color-mix(in srgb,var(--warn,#E0A030) 14%,transparent)}.rv{color:var(--warn,#C07800);font-weight:700}.mini small.rv{color:var(--warn,#C07800);font-weight:700}.pushtbl th{white-space:normal;line-height:1.2}.pushtbl td small{color:var(--muted)}
 .pushtbl tr>:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .pushtbl tr>:last-child:has(.repx){position:sticky;right:0;background:var(--surface);z-index:1}
@@ -637,6 +639,7 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
       <div class="row">
         <button class="btn1" id="dExport">Exportar respaldo</button>
         <button class="btn2" id="dImport">Importar</button>
+        <button class="btn1" id="dCsvDl">Descargar CSV…</button>
         <button class="btn2" id="dCsv">Copiar CSV</button>
         <button class="btn2" id="clearEx">Quitar ejemplos</button>
         <button class="btn2 danger" id="dWipe">Borrar todo</button>
@@ -2187,6 +2190,106 @@ function csv(){
   });
   return rows.map(r=>r.join(',')).join('\n');
 }
+
+// ---------- Descargar CSV con filtros (atletas, ejercicios, fechas, tipo de serie) para armar dashboards ----------
+const XP = { ath:null, ex:null, from:'', to:'', kinds:{'':true, pre:true, post:true}, level:'rep', fmt:'xl', dropBad:true };
+function csvBuild(sets, level, f){
+  const sep = f === 'xl' ? ';' : ',', num = (v, d) => { if (!has(v) || !isFinite(v)) return ''; const t = (+v).toFixed(d); return f === 'xl' ? t.replace('.', ',') : t; };
+  const q = t => { t = String(t ?? ''); return /[;,"\n]/.test(t) ? `"${t.replace(/"/g,'""')}"` : t; };
+  const kindName = s => s.test === 'pre' ? 'test_1ms_antes' : s.test === 'post' ? 'test_1ms_despues' : 'entrenamiento';
+  const k = S.springK > 0 ? S.springK : 0;
+  // número de serie dentro del día, por atleta y ejercicio
+  const ord = new Map(), cnt = {};
+  sets.slice().sort((a,b)=>a.time-b.time).forEach(s => { const key = s.athlete+'|'+s.exercise+'|'+dayKey(s.time); cnt[key] = (cnt[key]||0)+1; ord.set(s.id, cnt[key]); });
+  const base = s => { const a = athOf(s.athlete) || {name:'Sin atleta', pos:''}, d = new Date(s.time), e = exo(s.exercise);
+    return [dayKey(s.time), d.toTimeString().slice(0,5), q(a.name), q(a.pos||''), q(s.athlete||''), q(e.name), e.push?'empuje':'barra', kindName(s), num(s.load,1), ord.get(s.id), q(s.id)]; };
+  const head = ['fecha','hora','atleta','puesto','atleta_id','ejercicio','tipo_ejercicio','tipo_serie','carga_kg','serie_del_dia','serie_id'];
+  let rows;
+  if (level === 'set'){
+    rows = [[...head,'reps','mejor_v_ms','v_media_serie_ms','perdida_pct','pct_1rm','rm_est_kg','potencia_media_max_w','v_pico_max_ms','hasta_1cm_mejor_ms','al_tope_mejor_ms','acel_pico_max_ms2','avance_max_cm']];
+    sets.forEach(s => { const e = exo(s.exercise), reps = s.reps;
+      if (e.push){ const P = pushStatsOf(reps);
+        rows.push([...base(s), reps.length, num(P.vm,3), num(reps.reduce((a,r)=>a+(has(r.vm)?r.vm:r.v),0)/reps.length,3), '', '', '', '',
+          num(P.vp,3), P.t10!=null?num(P.t10*1000,0):'', P.top!=null?num(P.top*1000,0):'', num(P.apk,2), P.mm!=null?num(P.mm/10,1):'']);
+      } else { const I = intensity(s.athlete, s.exercise, s.load, s.best);
+        rows.push([...base(s), reps.length, num(s.best,3), num(s.mean,3), num(s.vl,1), I && !I.below ? num(I.pct,0) : '', I && I.pct > 0 && !I.below ? num(s.load/(I.pct/100),1) : '',
+          Math.round(Math.max(...reps.map(r=>power(sysMass(s),r)))), num(Math.max(...reps.map(r=>r.vp||0)),3), '', '', '', '']); }
+    });
+  } else {
+    rows = [[...head,'rep','v_media_prop_ms','v_media_ms','v_pico_ms','recorrido_cm','duracion_s','potencia_media_w','potencia_pico_w','fuerza_media_n','v_excentrica_ms','tut_s','perdida_pct','medido_con','v_comparacion_ms',
+      'empuje_avance_cm','empuje_fuerza_kg','hasta_1cm_ms','hasta_2cm_ms','hasta_5cm_ms','al_tope_ms','acel_pico_ms2','acel_media_ms2','tasa_50ms_cm_s','revisar']];
+    sets.forEach(s => { const e = exo(s.exercise);
+      s.reps.forEach((r,ri) => rows.push([...base(s), ri+1,
+        num(r.v,3), num(r.vm,3), num(r.vp,3), num(r.rom*100,1), num(r.dur,2), e.push?'':Math.round(power(sysMass(s),r)), !e.push&&has(r.ppk)?Math.round(sysMass(s)*r.ppk):'',
+        !e.push&&has(r.fk)?Math.round(s.load*r.fk):'', num(r.ev,3), num(r.tut,2), e.push?'':num((1-r.v/s.best)*100,1),
+        r.src==='enc'?'encoder':r.src==='imu'?'sensor':'', r.cmp?num(r.cmp.v,3):'',
+        e.push&&has(r.pmax)?num(r.pmax/10,1):'', e.push&&has(r.pmax)&&k?num(r.pmax/10*k,1):'', has(r.t10)&&r.t10>=0?num(r.t10*1000,0):'', has(r.t20)&&r.t20>=0?num(r.t20*1000,0):'',
+        has(r.t50)&&r.t50>=0?num(r.t50*1000,0):'', e.push&&has(r.dur)?num(r.dur*1000,0):'', num(r.apk,2), num(r.am,2), has(r.rfd)?num(r.rfd/10,1):'', e.push&&overMax(r)?'si':'']));
+    });
+  }
+  return '﻿' + rows.map(r=>r.join(sep)).join('\r\n');
+}
+function xpSets(){
+  const from = XP.from ? new Date(XP.from+'T00:00').getTime() : 0, to = XP.to ? new Date(XP.to+'T23:59:59').getTime() : Infinity;
+  return S.sets.filter(s => !s.example && XP.ath.has(s.athlete) && XP.ex.has(s.exercise) && XP.kinds[s.test||''] && s.time >= from && s.time <= to)
+    .map(s => { if (!XP.dropBad || !exo(s.exercise).push) return s; const reps = s.reps.filter(r=>!overMax(r)); return reps.length ? Object.assign({}, s, {reps}) : null; })
+    .filter(Boolean).sort((a,b)=>a.time-b.time);
+}
+function openExport(){
+  const real = S.sets.filter(s=>!s.example);
+  const aths = S.athletes.filter(a => real.some(s=>s.athlete===a.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  const exs = EXERCISES.filter(e => real.some(s=>s.exercise===e.id));
+  if (!XP.ath) XP.ath = new Set(aths.map(a=>a.id));
+  if (!XP.ex) XP.ex = new Set(exs.map(e=>e.id));
+  const chk = (grp, id, on, label) => `<label class="xpck"><input type="checkbox" data-g="${grp}" data-id="${esc(id)}" ${on?'checked':''}> <span>${label}</span></label>`;
+  const all = grp => `<span class="xpall"><button type="button" class="linkbtn" data-all="${grp}">todos</button> · <button type="button" class="linkbtn" data-none="${grp}">ninguno</button></span>`;
+  openSheet(`<h2>Descargar CSV</h2>
+    <p class="note" style="margin:0">Elegí qué bajar. El archivo abre en Excel o se carga en Power BI, Looker Studio o Python para armar el dashboard.</p>
+    <div class="xpsec"><div class="xph"><b>Atletas</b>${all('a')}</div><div class="xpgrid">${aths.map(a=>chk('a', a.id, XP.ath.has(a.id), esc(a.name)+(a.pos?` <small>${esc(a.pos)}</small>`:''))).join('') || '<span class="note">Sin series todavía</span>'}</div></div>
+    <div class="xpsec"><div class="xph"><b>Ejercicios</b>${all('e')}</div><div class="xpgrid">${exs.map(e=>chk('e', e.id, XP.ex.has(e.id), e.name)).join('')}</div></div>
+    <div class="xpsec"><div class="xph"><b>Tipo de serie</b></div><div class="xpgrid">${chk('k','',XP.kinds[''],'Entrenamiento')}${chk('k','pre',XP.kinds.pre,'Test 1 m/s · antes')}${chk('k','post',XP.kinds.post,'Test 1 m/s · después')}</div></div>
+    <div class="xpsec"><div class="xph"><b>Fechas</b><span class="xpall"><button type="button" class="linkbtn" data-rng="0">todo</button> · <button type="button" class="linkbtn" data-rng="7">7 días</button> · <button type="button" class="linkbtn" data-rng="30">30 días</button></span></div>
+      <div class="xpgrid"><label class="field"><span class="label">Desde</span><input type="date" class="sel" id="xpFrom" value="${XP.from}"></label><label class="field"><span class="label">Hasta</span><input type="date" class="sel" id="xpTo" value="${XP.to}"></label></div></div>
+    <div class="xpsec"><div class="xph"><b>Una fila por…</b></div><div class="xpgrid">
+      <label class="xpck"><input type="radio" name="xpLv" value="rep" ${XP.level==='rep'?'checked':''}> <span>repetición / empuje <small>(todo el detalle)</small></span></label>
+      <label class="xpck"><input type="radio" name="xpLv" value="set" ${XP.level==='set'?'checked':''}> <span>serie <small>(resumen: mejor, media, pérdida, % 1RM)</small></span></label></div></div>
+    <div class="xpsec"><div class="xph"><b>Formato</b></div><div class="xpgrid">
+      <label class="xpck"><input type="radio" name="xpFmt" value="xl" ${XP.fmt==='xl'?'checked':''}> <span>Excel en español <small>(; y coma decimal)</small></span></label>
+      <label class="xpck"><input type="radio" name="xpFmt" value="std" ${XP.fmt==='std'?'checked':''}> <span>Estándar <small>(, y punto: Power BI, Python, Google Sheets)</small></span></label>
+      <label class="xpck"><input type="checkbox" id="xpBad" ${XP.dropBad?'checked':''}> <span>Sin los empujes de scrum marcados "revisar"</span></label></div></div>
+    <div class="note" id="xpCount" style="margin:4px 0 0"></div>
+    <div class="row"><button class="btn1" id="xpGo">Descargar</button><button class="btn2" id="xpCopy">Copiar</button><button class="btn2" id="xpClose">Cerrar</button></div>`);
+  const card = $('sheetCard');
+  const count = () => { const ss = xpSets(), n = ss.reduce((a,s)=>a+s.reps.length,0);
+    $('xpCount').textContent = ss.length ? `${ss.length} serie${ss.length===1?"":"s"} · ${n} reps/empujes · ${(c=>c+(c===1?" atleta":" atletas"))(new Set(ss.map(s=>s.athlete)).size)}` : 'Nada para bajar con estos filtros';
+    $('xpGo').disabled = $('xpCopy').disabled = !ss.length; };
+  card.onchange = e => { const t = e.target;
+    if (t.dataset.g === 'a') t.checked ? XP.ath.add(t.dataset.id) : XP.ath.delete(t.dataset.id);
+    else if (t.dataset.g === 'e') t.checked ? XP.ex.add(t.dataset.id) : XP.ex.delete(t.dataset.id);
+    else if (t.dataset.g === 'k') XP.kinds[t.dataset.id] = t.checked;
+    else if (t.name === 'xpLv') XP.level = t.value; else if (t.name === 'xpFmt') XP.fmt = t.value;
+    else if (t.id === 'xpBad') XP.dropBad = t.checked; else if (t.id === 'xpFrom') XP.from = t.value; else if (t.id === 'xpTo') XP.to = t.value;
+    count(); };
+  card.onclick = e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.all || b.dataset.none){ const g = b.dataset.all || b.dataset.none, on = !!b.dataset.all, set = g==='a' ? XP.ath : XP.ex;
+      card.querySelectorAll(`input[data-g="${g}"]`).forEach(i => { i.checked = on; on ? set.add(i.dataset.id) : set.delete(i.dataset.id); }); count(); }
+    else if (b.dataset.rng !== undefined){ const d = +b.dataset.rng; XP.to = ''; XP.from = d ? dayKey(Date.now() - (d-1)*86400000) : '';
+      $('xpFrom').value = XP.from; $('xpTo').value = XP.to; count(); }
+    else if (b.id === 'xpClose') closeSheet();
+    else if (b.id === 'xpCopy'){ const text = csvBuild(xpSets(), XP.level, XP.fmt).slice(1);
+      try { navigator.clipboard.writeText(text).then(()=>{ b.textContent = '✓ Copiado'; }, ()=>{}); } catch(_){} }
+    else if (b.id === 'xpGo'){
+      const text = csvBuild(xpSets(), XP.level, XP.fmt), sel = [...XP.ath];
+      const who = sel.length === 1 ? (athName(sel[0])||'atleta').replace(/[^\wáéíóúñÁÉÍÓÚÑ-]+/g,'_') : 'atletas';
+      const name = `trakvbt_${who}_${XP.level==='set'?'series':'reps'}_${dayKey(Date.now())}.csv`;
+      const blob = new Blob([text], {type:'text/csv;charset=utf-8'}), file = (()=>{ try { return new File([blob], name, {type:'text/csv'}); } catch(_){ return null; } })();
+      if (file && navigator.canShare && navigator.canShare({files:[file]}) && /iPhone|iPad|Android/i.test(navigator.userAgent))
+        navigator.share({files:[file], title:name}).catch(()=>{});
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+    } };
+  count();
+}
+$('dCsvDl').onclick = openExport;
 $('dExport').onclick = exportData;
 $('dSend').onclick = sendOnline;
 $('dCopy').onclick = copyForOnline;
