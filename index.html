@@ -729,11 +729,12 @@ const S = {
   tab:'Serie', detail:null, pgAth:'', pgEx:'sq', setKind:'',
   measure:'imu', encAddr:'',          // con qué se mide la serie: sensor (imu), encoder (enc) o los dos (both)
   springK:0,                          // máquina de scrum: kg por cm de compresión del resorte (0 = sin calibrar)
-  pushMax:11,                         // máquina de scrum: recorrido máximo posible (cm); lo que lo pase es error de medición
+  pushMax:11,
+  pushTope:true,                      // máquina de scrum: el jugador siempre llega al tope (recorrido fijo)                         // máquina de scrum: recorrido máximo posible (cm); lo que lo pase es error de medición
   pushTarget:4,                       // máquina de scrum: empujes por serie (0 = libre); al llegar se guarda la serie
 };
 Object.assign(S, store.get('trakvbt.prefs', {}));
-const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl, measure:S.measure, encAddr:S.encAddr, springK:S.springK, pushMax:S.pushMax, pushTarget:S.pushTarget});
+const savePrefs = () => store.set('trakvbt.prefs', {athlete:S.athlete, exercise:S.exercise, load:S.load, cut:S.cut, autoGap:S.autoGap, sound:S.sound, pgAth:S.pgAth, pgEx:S.pgEx, onlineUrl:S.onlineUrl, measure:S.measure, encAddr:S.encAddr, springK:S.springK, pushMax:S.pushMax, pushTope:S.pushTope, pushTarget:S.pushTarget});
 const saveAll = () => {
   const ok = store.set('trakvbt.athletes', S.athletes.filter(a=>!a.example)) && store.set('trakvbt.sets', S.sets.filter(s=>!s.example));
   if (!ok) toastIn('dToast','No hay espacio para guardar: exportá un respaldo');
@@ -1159,9 +1160,14 @@ function renderSerie(newRep){
     $('tPeak').innerHTML = has(last.apk) ? `${fmt(last.apk,1)}<small>m/s²</small>` : '—';
     $('tPow').innerHTML = has(last.t10) && last.t10 >= 0 ? `${fmt(last.t10*1000,0)}<small>ms</small>` : '—';
     $('tPowRel').textContent = has(last.t50) && last.t50 >= 0 ? `5 cm en ${fmt(last.t50*1000,0)} ms` : '';
-    $('tRom').innerHTML = `${fmt(mm/10,1)}<small>cm</small>${!overMax(last)&&k?` <small>· ${fmt(mm/10*k,0)} kg</small>`:''}`;
+    if (topeOn()){
+      $('tRom').innerHTML = has(last.dur) ? `${fmt(last.dur*1000,0)}<small>ms</small>` : '—';
+      lbl('tRom', overMax(last) ? 'Al tope · revisar' : `Hasta el tope (${kg(S.pushMax)} cm)`);
+    } else {
+      $('tRom').innerHTML = `${fmt(mm/10,1)}<small>cm</small>${!overMax(last)&&k?` <small>· ${fmt(mm/10*k,0)} kg</small>`:''}`;
+      if (overMax(last)) lbl('tRom', `Avance · revisar (máx. ${kg(S.pushMax)} cm)`);
+    }
     $('tRom').parentElement.className = 'tile' + (overMax(last) ? ' warnv' : '');
-    if (overMax(last)) lbl('tRom', `Avance · revisar (máx. ${kg(S.pushMax)} cm)`);
     $('tVL').innerHTML = `${fmt(has(last.vm)?last.vm:last.v)}<small>m/s</small>`; $('tVLbox').className = 'tile';
     drawCurve(last); renderSci(shown, reps, best, 0);
     if (newRep){ $('vel').classList.remove('pop'); void $('vel').offsetWidth; $('vel').classList.add('pop'); }
@@ -1435,7 +1441,7 @@ function setRow(s, showAth){
     const t1 = ok.map(r=>r.t10).filter(x=>has(x) && x >= 0);
     const vpk = ok.length ? Math.max(...ok.map(r=>r.vp||0)) : 0;
     return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
-      <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b><br>${s.reps.length} empuje${s.reps.length===1?"":"s"} · máx. ${bestP?fmt(mm(bestP)/10,1)+' cm'+(k?` (${fmt(mm(bestP)/10*k,0)} kg)`:''):'—'}${t1.length?` · 1 cm en ${fmt(Math.min(...t1)*1000,0)} ms`:''} · v pico ${fmt(vpk)} m/s · ${hh}${nBad?` · <span class="rv">${nBad} a revisar (más de ${kg(S.pushMax)} cm)</span>`:''}</div>
+      <div class="meta"><b>${showAth?esc(athName(s.athlete))+' · ':''}${e.name}</b><br>${s.reps.length} empuje${s.reps.length===1?"":"s"} · ${topeOn() ? (()=>{ const tt = ok.map(r=>r.dur).filter(x=>has(x)&&x>0); return tt.length ? `al tope en ${fmt(Math.min(...tt)*1000,0)} ms` : 'al tope —'; })() : `máx. ${bestP?fmt(mm(bestP)/10,1)+' cm'+(k?` (${fmt(mm(bestP)/10*k,0)} kg)`:''):'—'}`}${t1.length?` · 1 cm en ${fmt(Math.min(...t1)*1000,0)} ms`:''} · v pico ${fmt(vpk)} m/s · ${hh}${nBad?` · <span class="rv">${nBad} a revisar</span>`:''}</div>
       <div class="vlp ok">›</div></div>`;
   }
   return `<div class="item tap" data-set="${s.id}"><div class="load">${kg(s.load)}<small> kg</small></div>
@@ -1462,13 +1468,14 @@ function pushTable(s, editable){
   const n1 = (x, d=1) => has(x) ? fmt(x, d) : '—';
   const rows = s.reps.map((r,i) => {
     const mm = has(r.pmax) ? r.pmax : r.rom*1000;
-    const bad = S.pushMax > 0 && mm/10 > S.pushMax*1.03;
-    return `<tr data-i="${i}"${bad?' class="revisar" title="Más que el recorrido máximo de la máquina: mal medido"':''}><td>${i+1}</td><td>${fmt(mm/10,1)}${bad?'<br><small class="rv">revisar</small>':k?`<br><small>${fmt(mm/10*k,0)} kg</small>`:''}</td><td>${ms(r.t10)}</td><td>${ms(r.t20)}</td><td>${ms(r.t50)}</td>
+    const bad = overMax(r), tp = topeOn();
+    const c2 = tp ? (has(r.dur) ? fmt(r.dur*1000,0) : '—') : fmt(mm/10,1);
+    return `<tr data-i="${i}"${bad?' class="revisar" title="Mal medido: no llegó al tope, golpe, o más que el recorrido de la máquina"':''}><td>${i+1}</td><td>${c2}${bad?'<br><small class="rv">revisar</small>':!tp&&k?`<br><small>${fmt(mm/10*k,0)} kg</small>`:''}</td><td>${ms(r.t10)}</td><td>${ms(r.t20)}</td><td>${ms(r.t50)}</td>
       <td>${fmt(r.vp)}</td><td>${fmt(has(r.vm)?r.vm:r.v)}</td><td>${n1(r.apk)}</td><td>${n1(r.am)}</td><td>${has(r.rfd)?fmt((k?r.rfd/10*k:r.rfd/10),0):'—'}</td>
       ${editable?`<td><button type="button" class="repx" data-x="${i}" aria-label="Quitar empuje ${i+1}">✕</button></td>`:''}</tr>`;
   }).join('');
   return `<div class="pushwrap"><table class="mini pushtbl" ${editable?'id="esReps"':''}>
-    <tr><th>#</th><th>Avance cm</th><th>1 cm ms</th><th>2 cm ms</th><th>5 cm ms</th><th>V pico m/s</th><th>V media m/s</th><th>Acel. pico m/s²</th><th>Acel. media m/s²</th><th>Tasa 50 ms ${k?'kg/s':'cm/s'}</th>${editable?'<th></th>':''}</tr>
+    <tr><th>#</th><th>${topeOn()?'Al tope ms':'Avance cm'}</th><th>1 cm ms</th><th>2 cm ms</th><th>5 cm ms</th><th>V pico m/s</th><th>V media m/s</th><th>Acel. pico m/s²</th><th>Acel. media m/s²</th><th>Tasa 50 ms ${k?'kg/s':'cm/s'}</th>${editable?'<th></th>':''}</tr>
     ${rows}</table></div><p class="pushhint">Deslizá la tabla hacia los costados para ver todo.</p>`;
 }
 function editSet(id){
@@ -1573,7 +1580,7 @@ function renderAtletas(){
   const exIds = [...new Set(S.sets.filter(s=>s.athlete===a.id).map(s=>s.exercise))];
   $('adSummary').innerHTML = exIds.length ? `<table class="mini"><tr><th>Ejercicio</th><th>1RM est.</th><th>1RM / peso</th><th>Mejor VMP</th><th>Carga máx.</th><th>Sesiones</th></tr>${exIds.map(ex=>{
       if (exo(ex).push){ const P = pushSessions(a.id, ex), q = pushStatsOf(P.flatMap(o=>o.sets.flatMap(s=>s.reps)));
-        return `<tr><td>${exo(ex).name}</td><td colspan="3">v pico ${fmt(q.vp)} m/s · 1 cm en ${pms(q.t10)} · avance ${q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}</td><td>${kg(Math.max(...P.flatMap(o=>o.sets.map(s=>s.load))))} kg</td><td>${P.length}</td></tr>`; }
+        return `<tr><td>${exo(ex).name}</td><td colspan="3">v pico ${fmt(q.vp)} m/s · 1 cm en ${pms(q.t10)} · ${topeOn()?`al tope en ${pms(q.top)}`:`avance ${q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}`}</td><td>${kg(Math.max(...P.flatMap(o=>o.sets.map(s=>s.load))))} kg</td><td>${P.length}</td></tr>`; }
       const rm = currentRM(a.id, ex), ses = sessionsOf(a.id, ex), bwN = bwAt(a.id);
       return `<tr><td>${exo(ex).name}</td><td>${rm?Math.round(rm)+' kg':'—'}</td><td>${rm&&bwN?fmt(rm/bwN,2):'—'}</td><td>${fmt(Math.max(...ses.map(o=>o.best)))} m/s</td><td>${kg(Math.max(...ses.map(o=>o.maxLoad)))} kg</td><td>${ses.length}</td></tr>`;
     }).join('')}</table>` : '<div class="empty">Sin series todavía. Tocá «Entrenar ahora».</div>';
@@ -1656,12 +1663,22 @@ function delta(a, b, unit, d=0, pct=true){
 // ---------- máquina de scrum: resumen por sesión (no usa VMP, 1RM ni pérdida, que son de barra) ----------
 function pmm(r){ return has(r.pmax) ? r.pmax : (r.rom||0)*1000; }
 // avance imposible (más que el recorrido de la máquina): mal medido, no cuenta para los mejores
-function overMax(r){ return S.pushMax > 0 && pmm(r) / 10 > S.pushMax * 1.03; }
+function topeOn(){ return !!S.pushTope && S.pushMax > 0; }
+// empujes medidos antes de saber que siempre llega al tope: se pueden llevar a 11 cm (escala todo)
+function needsScale(r){ if (!topeOn() || r.topeAdj) return false; const D = S.pushMax*10, m = pmm(r); return m >= 0.75*D && m <= 1.8*D && Math.abs(m-D) > 0.03*D && !(has(r.apk) && r.apk > 35); }
+function scaleRep(r){ const D = S.pushMax*10, f = D / pmm(r);
+  ['vp','v','vm','mpv','apk','am','rfd'].forEach(k => { if (has(r[k])) r[k] *= f; });
+  if (Array.isArray(r.curve)) r.curve = r.curve.map(x => x*f);
+  r.pmax = D; r.rom = D/1000; r.topeAdj = +f.toFixed(3); }
+// "revisar": imposible para la máquina (más que el recorrido; con tope: no llegó, golpe o sin ajustar)
+function overMax(r){
+  if (topeOn()){ const D = S.pushMax*10, m = pmm(r); return m < 0.75*D || m > 1.8*D || (has(r.apk) && r.apk > 35) || needsScale(r); }
+  return S.pushMax > 0 && pmm(r) / 10 > S.pushMax * 1.03; }
 function pushStatsOf(reps){
   reps = reps.filter(r => !overMax(r));
   const t = k => reps.map(r=>r[k]).filter(x=>has(x) && x >= 0);
   const mx = a => a.length ? Math.max(...a) : null, mn = a => a.length ? Math.min(...a) : null;
-  return { n: reps.length, mm: mx(reps.map(pmm)), t10: mn(t('t10')), t20: mn(t('t20')), t50: mn(t('t50')),
+  return { n: reps.length, mm: mx(reps.map(pmm)), top: mn(t('dur')), t10: mn(t('t10')), t20: mn(t('t20')), t50: mn(t('t50')),
     vp: mx(reps.map(r=>r.vp||0)), vm: mx(reps.map(r=>has(r.vm)?r.vm:r.v||0)), apk: mx(t('apk')) };
 }
 function pushSessions(ath, ex, since=0){
@@ -1677,12 +1694,13 @@ function pushProgressHTML(ath, ex, since=0, pdf=false){
   if (!P.length) return '';
   const all = pushStatsOf(P.flatMap(o=>o.sets.flatMap(s=>s.reps)));
   const first = P[0], last = P[P.length-1];
-  const pts = k => P.filter(o=>o[k]!=null).map(o=>({t:o.time, y:k==='mm'?o[k]/10:k[0]==='t'?o[k]*1000:o[k]}));
+  const pts = k => P.filter(o=>o[k]!=null).map(o=>({t:o.time, y:k==='mm'?o[k]/10:(k[0]==='t')?o[k]*1000:o[k]}));
   const c1 = pdf ? '#2350E6' : 'var(--s1)', c2 = pdf ? '#13917F' : 'var(--s4)';
   const kp = (lbl, v, unit, d) => pdf ? `<div class="kpi"><div class="label">${lbl}</div><div class="v">${v}<small> ${unit}</small></div>${d||''}</div>`
                                       : `<div class="tile"><div class="label">${lbl}</div><div class="v">${v}<small>${unit}</small></div>${d||''}</div>`;
   const dl = (k, u, dec) => P.length>1 && first[k]!=null && last[k]!=null && k[0]!=='t' ? delta(k==='mm'?first[k]/10:first[k], k==='mm'?last[k]/10:last[k], u, dec) : '';
-  const kpis = kp('Mejor avance', all.mm!=null?fmt(all.mm/10,1):'—', 'cm', `<div class="d">${S.springK>0&&all.mm!=null?fmt(all.mm/10*S.springK,0)+' kg':'cargá kg por cm para ver la fuerza'}</div>`)
+  const kpis = (topeOn() ? kp('Más rápido al tope', all.top!=null?fmt(all.top*1000,0):'—', 'ms', `<div class="d">${kg(S.pushMax)} cm · menos es mejor</div>`)
+      : kp('Mejor avance', all.mm!=null?fmt(all.mm/10,1):'—', 'cm', `<div class="d">${S.springK>0&&all.mm!=null?fmt(all.mm/10*S.springK,0)+' kg':'cargá kg por cm para ver la fuerza'}</div>`))
     + kp('Más rápido a 1 cm', all.t10!=null?fmt(all.t10*1000,0):'—', 'ms', '<div class="d">menos es mejor</div>')
     + kp('V pico máx.', fmt(all.vp), 'm/s', dl('vp','',2))
     + kp('Acel. pico máx.', all.apk!=null?fmt(all.apk,1):'—', 'm/s²', dl('apk','',1));
@@ -1690,12 +1708,13 @@ function pushProgressHTML(ath, ex, since=0, pdf=false){
     : `<section class="panel"><div class="phead"><h2>${title}</h2><span class="sub">${sub}</span></div><svg class="chart" viewBox="0 0 340 180">${timeSVG(series, opt)}</svg></section>`;
   const charts = chart('Velocidad pico', 'mejor empuje de cada sesión', [{color:c1, pts:pts('vp')}])
     + chart('Tiempo hasta 1 cm', 'más rápido de cada sesión · menos es mejor', [{color:c2, pts:pts('t10')}], {yFmt:v=>Math.round(v), unit:' ms'})
-    + chart('Avance máximo', 'cm por sesión', [{color:c1, pts:pts('mm')}], {yFmt:v=>fmt(v,1), unit:' cm'})
+    + (topeOn() ? chart('Tiempo hasta el tope', `${kg(S.pushMax)} cm · más rápido de cada sesión · menos es mejor`, [{color:c1, pts:pts('top')}], {yFmt:v=>Math.round(v), unit:' ms'})
+               : chart('Avance máximo', 'cm por sesión', [{color:c1, pts:pts('mm')}], {yFmt:v=>fmt(v,1), unit:' cm'}))
     + chart('Aceleración pico', 'm/s² por sesión', [{color:c2, pts:pts('apk')}], {yFmt:v=>fmt(v,1)});
-  const ses = `<table class="mini${pdf?'':' wide'}"><tr><th>Fecha</th><th>Series</th><th>Empujes</th><th>Avance máx.</th><th>1 cm</th><th>2 cm</th><th>5 cm</th><th>V pico</th><th>Acel. pico</th></tr>
-    ${P.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${o.n}</td><td>${o.mm!=null?fmt(o.mm/10,1)+' cm'+pkg(o.mm):'—'}</td><td>${pms(o.t10)}</td><td>${pms(o.t20)}</td><td>${pms(o.t50)}</td><td>${fmt(o.vp)}</td><td>${o.apk!=null?fmt(o.apk,1):'—'}</td></tr>`).join('')}</table>`;
-  const lastT = `<table class="mini${pdf?'':' wide'}"><tr><th>Hora</th><th>Carga</th><th>Empujes</th><th>Avance máx.</th><th>1 cm</th><th>V pico</th><th>V media</th><th>Acel. pico</th></tr>
-    ${last.sets.map(s=>{ const q = pushStatsOf(s.reps); return `<tr><td>${new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td><td>${kg(s.load)} kg</td><td>${q.n}</td><td>${q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}</td><td>${pms(q.t10)}</td><td>${fmt(q.vp)}</td><td>${fmt(q.vm)}</td><td>${q.apk!=null?fmt(q.apk,1):'—'}</td></tr>`; }).join('')}</table>`;
+  const ses = `<table class="mini${pdf?'':' wide'}"><tr><th>Fecha</th><th>Series</th><th>Empujes</th><th>${topeOn()?'Al tope':'Avance máx.'}</th><th>1 cm</th><th>2 cm</th><th>5 cm</th><th>V pico</th><th>Acel. pico</th></tr>
+    ${P.slice().reverse().map(o=>`<tr><td>${dShort(o.time)}</td><td>${o.sets.length}</td><td>${o.n}</td><td>${topeOn()?pms(o.top):o.mm!=null?fmt(o.mm/10,1)+' cm'+pkg(o.mm):'—'}</td><td>${pms(o.t10)}</td><td>${pms(o.t20)}</td><td>${pms(o.t50)}</td><td>${fmt(o.vp)}</td><td>${o.apk!=null?fmt(o.apk,1):'—'}</td></tr>`).join('')}</table>`;
+  const lastT = `<table class="mini${pdf?'':' wide'}"><tr><th>Hora</th><th>Carga</th><th>Empujes</th><th>${topeOn()?'Al tope':'Avance máx.'}</th><th>1 cm</th><th>V pico</th><th>V media</th><th>Acel. pico</th></tr>
+    ${last.sets.map(s=>{ const q = pushStatsOf(s.reps); return `<tr><td>${new Date(s.time).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td><td>${kg(s.load)} kg</td><td>${q.n}</td><td>${topeOn()?pms(q.top):q.mm!=null?fmt(q.mm/10,1)+' cm':'—'}</td><td>${pms(q.t10)}</td><td>${fmt(q.vp)}</td><td>${fmt(q.vm)}</td><td>${q.apk!=null?fmt(q.apk,1):'—'}</td></tr>`; }).join('')}</table>`;
   const note = `Máquina de scrum: cada fila usa el mejor empuje (no el promedio). Velocidades en m/s, tiempos desde que arranca el empuje. Acá no se calculan 1RM, pérdida de velocidad ni potencia: son de ejercicios con barra.`;
   if (pdf) return `<div class="kpis">${kpis}</div><div class="two">${charts}</div><h3>Sesiones</h3>${ses}<h3>Última sesión · ${dLong(last.time)}</h3>${lastT}<p class="note" style="font-size:12px;color:#5A6576">${note}</p>`;
   return `<section class="panel"><div class="tiles">${kpis}</div><div class="d" style="margin-top:8px;color:var(--muted);font-size:13px">${P.length} sesiones · desde ${dShort(first.time)}</div></section>
@@ -2269,7 +2288,7 @@ $('athlete').onchange = e => {
   S.athlete = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); renderSerie();
 };
 $('exercise').onchange = e => { S.exercise = e.target.value; S.reps=[]; S.liveSet=null; savePrefs(); sendCfg(); renderSerie(); };
-function sendCfg(){ if (S.source !== 'sensor' || S.encHost){ encSendEcc(); return; } cmd('cut', `&cut=${exo(S.exercise).push?50:S.cut}&gap=${S.autoGap}&ecc=${exo(S.exercise).ecc===false?0:1}&push=${exo(S.exercise).push?1:0}&load=${S.load}`); encSendEcc(); }
+function sendCfg(){ if (S.source !== 'sensor' || S.encHost){ encSendEcc(); return; } cmd('cut', `&cut=${exo(S.exercise).push?50:S.cut}&gap=${S.autoGap}&ecc=${exo(S.exercise).ecc===false?0:1}&push=${exo(S.exercise).push?1:0}&trv=${exo(S.exercise).push&&topeOn()?Math.round(S.pushMax*10):0}&load=${S.load}`); encSendEcc(); }
 const setLoad = (v, fromBoard) => { S.load = Math.max(0, Math.min(500, Math.round(v*2)/2)); savePrefs(); if (!fromBoard && !S.recording) sendCfg(); renderSerie(); };
 $('loadUp').onclick = () => setLoad(S.load + 2.5);
 $('loadDn').onclick = () => setLoad(S.load - 2.5);
@@ -2477,8 +2496,11 @@ function renderScrum(reps, shown){
   const t = x => has(x) && x >= 0 ? `${fmt(x*1000,0)}<small> ms</small>` : '—';
   const kIn = `<div class="scrk"><span>Resorte:</span><input id="springK" inputmode="decimal" placeholder="kg por cm" value="${k ? kg(k) : ''}"><span>kg por cm</span>
     <button type="button" class="linkbtn" id="springHow">¿Cómo lo mido?</button></div>
-    ${(()=>{ const n = S.sets.filter(x=>exo(x.exercise).push).reduce((a,x)=>a+x.reps.filter(overMax).length,0);
-      return n ? `<div class="scrk"><button type="button" class="btn2" id="dropOver">Quitar los ${n} empujes de más de ${kg(S.pushMax)} cm (todas las series)</button></div>` : ''; })()}
+    <label class="scrk"><input type="checkbox" id="pushTope" ${S.pushTope?'checked':''}> <span>Siempre llega al tope (el recorrido es fijo): se mide la velocidad y el tiempo hasta el tope</span></label>
+    ${(()=>{ const ps = S.sets.filter(x=>exo(x.exercise).push).flatMap(x=>x.reps);
+      const nS = ps.filter(needsScale).length, nB = ps.filter(r=>overMax(r) && !needsScale(r)).length;
+      return (nS ? `<div class="scrk"><button type="button" class="btn2" id="scaleOld">Ajustar ${nS} empujes anteriores al tope de ${kg(S.pushMax)} cm</button></div>` : '')
+           + (nB ? `<div class="scrk"><button type="button" class="btn2" id="dropOver">Quitar ${nB} empujes mal tomados (todas las series)</button></div>` : ''); })()}
     <div class="scrk"><span>Recorrido máximo:</span><input id="pushMax" inputmode="decimal" placeholder="cm" value="${S.pushMax > 0 ? kg(S.pushMax) : ''}"><span>cm · lo que lo pase se marca "revisar"</span></div>
     <div class="note" id="springHelp" hidden>Enganchá una balanza de colgar al marco y tirá en la dirección del empuje hasta marcar 40 kg (o el peso que puedas sostener). Mirá en la pestaña Sensor › Encoder cuántos cm se comprimió y dividí: kg ÷ cm. Ej.: 40 kg y 4 cm → 10 kg por cm.</div>`;
   if (!pushes.length){
@@ -2486,11 +2508,12 @@ function renderScrum(reps, shown){
       <div class="note">Medí con el <b>encoder</b> (cable al marco que se mueve, caja en la parte fija, en línea con el resorte) o con el <b>sensor</b> pegado con el imán al marco que se mueve. Antes de cada empuje la máquina tiene que estar quieta un momento. Cada empuje aparece acá: avance, arranque, velocidad y aceleración.</div>${kIn}`;
   } else {
     const p = pushes[pushes.length-1];
-    const peak = k ? `<b>${fmt(kgOf(p.pmax),0)}</b><small>kg de fuerza pico · ${fmt(p.pmax/10,1)} cm</small>`
+    const peak = topeOn() ? `<b>${has(p.dur)?fmt(p.dur*1000,0):'—'}</b><small>ms hasta el tope (${kg(S.pushMax)} cm)${k?` · ${fmt(S.pushMax*k,0)} kg al tope`:''}</small>`
+               : k ? `<b>${fmt(kgOf(p.pmax),0)}</b><small>kg de fuerza pico · ${fmt(p.pmax/10,1)} cm</small>`
                    : `<b>${fmt(p.pmax/10,1)}</b><small>cm de avance máximo · cargá el resorte para ver kg</small>`;
     const rfd = k ? `${fmt(kgOf(p.rfd),0)}<small> kg/s</small>` : `${fmt(p.rfd/10,0)}<small> cm/s</small>`;
     const imp = !has(p.imp) ? '—' : k ? `${fmt(kgOf(p.imp),0)}<small> kg·s</small>` : `${fmt(p.imp/10,1)}<small> cm·s</small>`;
-    const rows = pushes.map((r,i) => `<tr${overMax(r)?' class="revisar"':''}><td>${i+1}</td><td>${overMax(r) ? fmt(r.pmax/10,1)+' cm<br><small class="rv">revisar</small>' : k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
+    const rows = pushes.map((r,i) => `<tr${overMax(r)?' class="revisar"':''}><td>${i+1}</td><td>${topeOn() ? (has(r.dur)?fmt(r.dur*1000,0)+' ms':'—')+(overMax(r)?'<br><small class="rv">revisar</small>':'') : overMax(r) ? fmt(r.pmax/10,1)+' cm<br><small class="rv">revisar</small>' : k ? fmt(kgOf(r.pmax),0)+' kg' : fmt(r.pmax/10,1)+' cm'}</td><td>${has(r.t10)&&r.t10>=0?fmt(r.t10*1000,0):'—'}</td><td>${has(r.t20)&&r.t20>=0?fmt(r.t20*1000,0):'—'}</td><td>${fmt(r.vp)}</td><td>${has(r.apk)?fmt(r.apk,1):'—'}</td><td>${has(r.hold)?fmt(r.hold,1):'—'}</td></tr>`).join('');
     box.innerHTML = `<span class="label">Máquina de scrum · empuje ${pushes.length}</span>
       <div class="scrbig">${peak}</div>
       <div class="scrgrid">
@@ -2506,23 +2529,32 @@ function renderScrum(reps, shown){
         ${has(p.hold) ? `<div><span>Sostenido ≥ 90 %</span><b>${fmt(p.hold,1)}<small> s</small></b></div>` : ''}
         ${has(p.imp) ? `<div><span>Impulso</span><b>${imp}</b></div>` : ''}
       </div>
-      <table class="mini"><thead><tr><th>#</th><th>Pico</th><th>1 cm ms</th><th>2 cm ms</th><th>V pico</th><th>Acel. pico</th><th>Sost. s</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="mini"><thead><tr><th>#</th><th>${topeOn()?'Al tope':'Pico'}</th><th>1 cm ms</th><th>2 cm ms</th><th>V pico</th><th>Acel. pico</th><th>Sost. s</th></tr></thead><tbody>${rows}</tbody></table>
       ${kIn}`;
   }
   $('springK').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.springK = v > 0 ? v : 0; savePrefs(); renderSerie(); };
   $('springHow').onclick = () => { $('springHelp').hidden = !$('springHelp').hidden; };
   if ($('dropOver')) $('dropOver').onclick = () => {
-    const sets = S.sets.filter(x => exo(x.exercise).push && x.reps.some(overMax));
-    const n = sets.reduce((a,x)=>a+x.reps.filter(overMax).length,0);
-    if (!confirm(`¿Quitar ${n} empujes de más de ${kg(S.pushMax)} cm? Son mediciones imposibles para esta máquina. Las series que queden vacías se borran.`)) return;
+    const bad = r => overMax(r) && !needsScale(r);
+    const sets = S.sets.filter(x => exo(x.exercise).push && x.reps.some(bad));
+    const n = sets.reduce((a,x)=>a+x.reps.filter(bad).length,0);
+    if (!confirm(`¿Quitar ${n} empujes mal tomados? ${topeOn()?'No llegaron al tope o son golpes.':`Pasan los ${kg(S.pushMax)} cm, imposible para esta máquina.`} Las series que queden vacías se borran.`)) return;
     sets.forEach(x => {
-      x.reps = x.reps.filter(r => !overMax(r));
+      x.reps = x.reps.filter(r => !bad(r));
       if (!x.reps.length){ S.sets = S.sets.filter(y => y.id !== x.id); if (cloudIn()) { C.tomb.sets.push(x.id); cSave(); } return; }
       x.reps.forEach((r,i) => { r.n = i+1; }); finishSet(x); x.edited = Date.now();
     });
     saveAll(); renderAll();
   };
-  $('pushMax').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.pushMax = v > 0 ? v : 0; savePrefs(); renderSerie(); };
+  $('pushTope').onchange = e => { S.pushTope = e.target.checked; savePrefs(); sendCfg(); renderAll(); };
+  if ($('scaleOld')) $('scaleOld').onclick = () => {
+    const sets = S.sets.filter(x => exo(x.exercise).push && x.reps.some(needsScale));
+    const n = sets.reduce((a,x)=>a+x.reps.filter(needsScale).length,0);
+    if (!confirm(`¿Ajustar ${n} empujes al tope de ${kg(S.pushMax)} cm? Como siempre llegan al tope, el avance medido de más es error del sensor: se corrigen en la misma proporción la velocidad y la aceleración.`)) return;
+    sets.forEach(x => { x.reps.forEach(r => { if (needsScale(r)) scaleRep(r); }); finishSet(x); x.edited = Date.now(); });
+    saveAll(); renderAll();
+  };
+  $('pushMax').onchange = e => { const v = parseFloat(String(e.target.value).replace(',','.')); S.pushMax = v > 0 ? v : 0; savePrefs(); sendCfg(); renderSerie(); };
 }
 // misma comparación con otra métrica (vm: media de toda la subida, vp: pico)
 function cmpLine(pairs, k, label){
