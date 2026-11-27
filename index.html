@@ -732,7 +732,7 @@ const S = {
   tab:'Serie', detail:null, pgAth:'', pgEx:'sq', setKind:'',
   measure:'imu', encAddr:'',          // con qué se mide la serie: sensor (imu), encoder (enc) o los dos (both)
   springK:0,                          // máquina de scrum: kg por cm de compresión del resorte (0 = sin calibrar)
-  pushMax:11,
+  pushMax:13,
   pushTope:true,                      // máquina de scrum: el jugador siempre llega al tope (recorrido fijo)                         // máquina de scrum: recorrido máximo posible (cm); lo que lo pase es error de medición
   pushTarget:4,                       // máquina de scrum: empujes por serie (0 = libre); al llegar se guarda la serie
 };
@@ -1667,15 +1667,20 @@ function delta(a, b, unit, d=0, pct=true){
 function pmm(r){ return has(r.pmax) ? r.pmax : (r.rom||0)*1000; }
 // avance imposible (más que el recorrido de la máquina): mal medido, no cuenta para los mejores
 function topeOn(){ return !!S.pushTope && S.pushMax > 0; }
-// empujes medidos antes de saber que siempre llega al tope: se pueden llevar a 11 cm (escala todo)
-function needsScale(r){ if (!topeOn() || r.topeAdj) return false; const D = S.pushMax*10, m = pmm(r); return m >= 0.75*D && m <= 1.8*D && Math.abs(m-D) > 0.03*D && !(has(r.apk) && r.apk > 35); }
+// empujes medidos antes de saber que siempre llega al tope: se pueden llevar al tope (escala todo)
+function needsScale(r){ if (!topeOn() || r.topeAdj) return false; const D = S.pushMax*10, m = pmm(r); return m >= 0.70*D && m <= 1.40*D && Math.abs(m-D) > 0.03*D && !(has(r.apk) && r.apk > 15); }
 function scaleRep(r){ const D = S.pushMax*10, f = D / pmm(r);
   ['vp','v','vm','mpv','apk','am','rfd'].forEach(k => { if (has(r[k])) r[k] *= f; });
   if (Array.isArray(r.curve)) r.curve = r.curve.map(x => x*f);
   r.pmax = D; r.rom = D/1000; r.topeAdj = +f.toFixed(3); }
 // "revisar": imposible para la máquina (más que el recorrido; con tope: no llegó, golpe o sin ajustar)
 function overMax(r){
-  if (topeOn()){ const D = S.pushMax*10, m = pmm(r); return m < 0.75*D || m > 1.8*D || (has(r.apk) && r.apk > 35) || needsScale(r); }
+  if (topeOn()){ const D = S.pushMax*10, m = pmm(r);
+    return m < 0.70*D || m > 1.40*D                       // no llegó al tope o pasó de largo
+      || (has(r.apk) && r.apk > 15)                        // golpe, no empuje
+      || (has(r.am) && has(r.apk) && r.am > r.apk)         // media mayor que el pico: imposible
+      || (has(r.t10) && r.t10 >= 0 && r.t10 < 0.040)       // 1 cm en menos de 40 ms: arranque mal detectado
+      || (has(r.dur) && r.dur > 0.6); }                    // tardó demasiado: juntó acomodo y empuje
   return S.pushMax > 0 && pmm(r) / 10 > S.pushMax * 1.03; }
 function pushStatsOf(reps){
   reps = reps.filter(r => !overMax(r));
