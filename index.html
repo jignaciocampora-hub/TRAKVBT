@@ -586,6 +586,9 @@ nav.tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--a
       </div>
       <div class="bar" id="fwBarW" hidden style="height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:10px"><i id="fwBar" style="display:block;height:100%;width:0;background:var(--accent)"></i></div>
       <span class="toast" id="fwToast" role="status"></span>
+      <div class="label" style="margin-top:16px">Datos crudos de la última serie</div>
+      <p class="note" style="margin:4px 0 8px">Para revisar una serie que salió mal: terminá la serie y bajalo antes de empezar otra.</p>
+      <div class="row" style="margin-top:0"><a class="btn2" id="rawDl" href="/raw.csv" download="trakvbt_raw.csv" style="text-decoration:none">Bajar raw.csv</a></div>
     </section>
 
     <section class="panel" id="wifiPanel" hidden>
@@ -2295,6 +2298,7 @@ function openExport(){
   count();
 }
 $('dCsvDl').onclick = openExport;
+$('rawDl').onclick = () => { $('rawDl').download = `trakvbt_raw_${dayKey(Date.now())}_${new Date().toTimeString().slice(0,5).replace(':','')}.csv`; };
 $('dExport').onclick = exportData;
 $('dSend').onclick = sendOnline;
 $('dCopy').onclick = copyForOnline;
